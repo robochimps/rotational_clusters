@@ -21,11 +21,14 @@ class Molecule:
     overlap: Optional[Callable] = lambda x: jnp.ones(x.shape[0])
 
     def linear_mapping_ho(self):
+        """Linear coordinate mapping parameters r = a * x + b
+        that best match 1D Hamiltonian to the Harmonic oscillator
+        """
         vmin = optimize.minimize(self.potential, [1.0, 1.0, np.pi / 2])
         r0 = vmin.x
         v0 = vmin.fun
         freq = np.diag(jax.hessian(self.potential)(r0))  # NOTE multiply by 2?
-        mu = np.diag(self.gmat1(np.array([r0]), self.masses[0], self.masses[1])[0])
+        mu = np.diag(self.gmat1(np.array([r0]))[0])
         a = np.sqrt(np.sqrt(mu / freq))
         b = r0
         return a, b, r0, v0
