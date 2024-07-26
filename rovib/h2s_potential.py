@@ -6,7 +6,7 @@ config.update("jax_enable_x64", True)
 
 
 @jax.jit
-def poten(coords):
+def potential(coords):
     """Calculates potential energy surface for the H2S molecule using data from ExoMol,
     see https://www.exomol.com/data/molecules/H2S/1H2-32S/
 
