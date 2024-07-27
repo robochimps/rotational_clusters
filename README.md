@@ -17,3 +17,4 @@
 
 [ ] Improve performance of J=0 basis using GPU implementation ideas from `flows`
 
+[ ] Integrate with `pyhami` when it's ready
