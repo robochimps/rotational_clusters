@@ -40,9 +40,9 @@ def tabulate_wang(linear: bool):
             k = 0
             t = j % 2
             sym = C2V_KTAU_IRREPS[(k % 2, t)]
-            ktau_list = [(k, t, sym)]
+            jktau_list = [(j, k, t, sym)]
         else:
-            ktau_list = []
+            jktau_list = []
             for k in range(0, j + 1):
                 if k == 0:
                     tau = [j % 2]
@@ -50,14 +50,14 @@ def tabulate_wang(linear: bool):
                     tau = [0, 1]
                 for t in tau:
                     sym = C2V_KTAU_IRREPS[(k % 2, t)]
-                    ktau_list.append((k, t, sym))
+                    jktau_list.append((j, k, t, sym))
 
         WANG_COEFS[(j, linear)] = (
             np.array(k_list),
-            np.array(ktau_list),
-            np.zeros((len(k_list), len(ktau_list)), dtype=np.complex128),
+            np.array(jktau_list),
+            np.zeros((len(k_list), len(jktau_list)), dtype=np.complex128),
         )
-        for i, (k, tau, sym) in enumerate(ktau_list):
+        for i, (j, k, tau, sym) in enumerate(jktau_list):
             c, k_pair = _wang_coefs(j, k, tau)
             for kk, cc in zip(k_pair, c):
                 i_k = k_list.index(kk)
@@ -260,7 +260,7 @@ def _overlap(jkc1, jkc2):
 
 
 def rotme_ovlp(j: int, linear: bool = False):
-    k_list, ktau_list, wang_coefs = WANG_COEFS[(j, linear)]
+    k_list, jktau_list, wang_coefs = WANG_COEFS[(j, linear)]
     s = jnp.array(
         [[_overlap((j, k1, 1), (j, k2, 1)) for k2 in k_list] for k1 in k_list]
     )
@@ -269,11 +269,11 @@ def rotme_ovlp(j: int, linear: bool = False):
     assert (
         max_imag < 1e-12
     ), f"<J',k',tau'|J,k,tau> matrix elements are not real-valued, max imaginary component: {max_imag}"
-    return jnp.real(res), k_list, ktau_list
+    return jnp.real(res), k_list, jktau_list
 
 
 def rotme_rot(j: int, linear: bool = False):
-    k_list, ktau_list, wang_coefs = WANG_COEFS[(j, linear)]
+    k_list, jktau_list, wang_coefs = WANG_COEFS[(j, linear)]
     jxx = jnp.array(
         [[_overlap((j, k1, 1), _jx_jx(j, k2)) for k2 in k_list] for k1 in k_list]
     )
@@ -307,11 +307,11 @@ def rotme_rot(j: int, linear: bool = False):
     assert (
         max_imag < 1e-12
     ), f"<J',k',tau'|Ja*Jb|J,k,tau> matrix elements are not real-valued, max imaginary component: {max_imag}"
-    return jnp.real(res), k_list, ktau_list
+    return jnp.real(res), k_list, jktau_list
 
 
 def rotme_cor(j: int, linear: bool = False):
-    k_list, ktau_list, wang_coefs = WANG_COEFS[(j, linear)]
+    k_list, jktau_list, wang_coefs = WANG_COEFS[(j, linear)]
     jx = jnp.array(
         [[_overlap((j, k1, 1), _jx(j, k2)) for k2 in k_list] for k1 in k_list]
     )
@@ -327,4 +327,4 @@ def rotme_cor(j: int, linear: bool = False):
     assert (
         max_imag < 1e-12
     ), f"i*<J',k',tau'|Ja|J,k,tau> matrix elements are not real-valued, max imaginary component: {max_imag}"
-    return jnp.real(res), k_list, ktau_list
+    return jnp.real(res), k_list, jktau_list
