@@ -6,6 +6,8 @@ import numpy as np
 from jax import config
 from jax import numpy as jnp
 
+from .c2v import C2V_KTAU_LABELS
+
 config.update("jax_enable_x64", True)
 
 
@@ -35,23 +37,27 @@ def tabulate_wang(linear: bool):
     for j in range(MAX_J + 1):
         k_list = [k for k in range(-j, j + 1)]
         if linear:
-            ktau_list = [(int(0), int(np.fmod(j, 2)))]
+            k = 0
+            t = j % 2
+            sym = C2V_KTAU_LABELS[(k % 2, t)]
+            ktau_list = [(k, t, sym)]
         else:
             ktau_list = []
             for k in range(0, j + 1):
                 if k == 0:
-                    tau = [int(np.fmod(j, 2))]
+                    tau = [j % 2]
                 else:
                     tau = [0, 1]
                 for t in tau:
-                    ktau_list.append((int(k), int(t)))
+                    sym = C2V_KTAU_LABELS[(k % 2, t)]
+                    ktau_list.append((k, t, sym))
 
         WANG_COEFS[(j, linear)] = (
-            k_list,
-            ktau_list,
+            np.array(k_list),
+            np.array(ktau_list),
             np.zeros((len(k_list), len(ktau_list)), dtype=np.complex128),
         )
-        for i, (k, tau) in enumerate(ktau_list):
+        for i, (k, tau, sym) in enumerate(ktau_list):
             c, k_pair = _wang_coefs(j, k, tau)
             for kk, cc in zip(k_pair, c):
                 i_k = k_list.index(kk)
@@ -320,5 +326,5 @@ def rotme_cor(j: int, linear: bool):
     max_imag = jnp.max(jnp.abs(jnp.imag(res)))
     assert (
         max_imag < 1e-12
-    ), f"-i*<J',k',tau'|Ja|J,k,tau> matrix elements are not real-valued, max imaginary component: {max_imag}"
+    ), f"i*<J',k',tau'|Ja|J,k,tau> matrix elements are not real-valued, max imaginary component: {max_imag}"
     return jnp.real(res), k_list, ktau_list

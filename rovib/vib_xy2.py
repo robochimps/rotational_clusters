@@ -22,7 +22,9 @@ def vibrations_xy2(
     gcor: Optional[Callable] = None,
     assign_c2v=False,
 ):
-    """Solves the eigenvalue problem for a vibrational Hamiltonian of an XY2-type triatomic molecule
+    """Solves the eigenvalue problem for vibrational Hamiltonian of an XY2-type triatomic molecule
+
+    See `h2s.ipynb` for the use example.
     """
     list_psi_vmap = [jax.jit(jax.vmap(psi, in_axes=(0, None))) for psi in list_psi]
     list_dpsi_vmap = [
@@ -73,22 +75,27 @@ def vibrations_xy2(
     r = x_to_r_vmap(x)
     jac_r = jac_x_to_r_vmap(x)
     inv_jac_r = jnp.linalg.inv(jac_r)
+    g = gmat(r)
+    gvib = g[:, :3, :3]
+    grot = g[:, 3:6, 3:6]
+    gcor = g[:, :3, 3:6]
     vmat = jnp.einsum("gi,gj,g,g->ij", psi, psi, potential(r), w)
     umat = jnp.einsum("gi,gj,g,g->ij", psi, psi, pseudo(r), w)
     dpsi_ = jnp.einsum("xgi,gxy->giy", dpsi, inv_jac_r)
-    tmat = jnp.einsum("gix,gjy,gxy,g->ij", dpsi_, dpsi_, gmat(r), w)
+    tmat = jnp.einsum("gix,gjy,gxy,g->ij", dpsi_, dpsi_, gvib, w)
 
     # eigenvectors and eigenvalues
 
     hmat = 0.5 * tmat + vmat + umat
     enr, vec = jnp.linalg.eigh(hmat)
+    psi = jnp.einsum("gi,ij->gj", psi, vec)
 
     # symmetry labels of eigenstates
 
-    sym = []
+    sym = ["X" for _ in range(len(quanta))]  # default
+
     if assign_c2v:
-        # eigenfunctions on grid
-        psi = jnp.einsum("gi,ij->gj", psi, vec)
+        sym = []
 
         # P(12) applied to eigenfunctions on grid
         psi1, psi2, psi3 = [
@@ -98,7 +105,7 @@ def vibrations_xy2(
         p12_psi = psi1[:, q1] * psi2[:, q2] * psi3[:, q3]
         p12_psi = jnp.einsum("gi,ij->gj", p12_psi, vec)
 
-        # check symmetry relations
+        # check symmetry relation
         for i in range(psi.shape[-1]):
             ind = np.where(np.abs(psi[:, i]) > 1e-08)
             ratio = np.mean(psi[ind, i] / p12_psi[ind, i])
@@ -108,20 +115,19 @@ def vibrations_xy2(
                 sym.append("B2")
             else:
                 raise ValueError(
-                    f"The ratio psi / P(12)psi = {ratio} for state with energy = {enr[i]} is nether close to 1 nor -1"
+                    f"Can't determine symmetry, the ratio psi / P(12)psi = {ratio} "
+                    + f"for the state with energy = {enr[i]} is nether close to 1 nor -1"
                 )
+
+    # add symmetry label as last column to the array of quanta
+    quanta = np.concatenate((quanta, np.array(sym)[:, None]), axis=1)
 
     # matrix elements of rotational operators
 
-    rot_me = None
-    if grot is not None:
-        g = grot(r)
-        rot_me = jnp.einsum("gi,gj,g...,g,ik,jl->kl...", psi, psi, g, w, vec, vec)
-    cor_me = None
-    if gcor is not None:
-        g = gcor(r)
-        cor_me = jnp.einsum(
-            "pgi,gj,gp...,g,ik,jl->kl...", dpsi, psi, g, w, vec, vec
-        ) - jnp.einsum("gi,pgj,gp...,g,ik,jl->kl...", psi, dpsi, g, w, vec, vec)
+    grot_me = jnp.einsum("gi,gj,gab,g->ijab", psi, psi, grot, w)
 
-    return enr, vec, sym, quanta, rot_me, cor_me
+    gcor_me = jnp.einsum("pgi,gj,gpa,g->ija", dpsi, psi, gcor, w) - jnp.einsum(
+        "gi,pgj,gpa,g->ija", psi, dpsi, gcor, w
+    )
+
+    return enr, vec, quanta, grot_me, gcor_me

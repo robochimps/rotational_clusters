@@ -9,7 +9,8 @@ from .h2s_potential import potential
 from .keo import Molecule, batch_Gmat, batch_pseudo, com
 from .primbas import hermite
 from .symtop import rotme_cor, rotme_ovlp, rotme_rot
-from .vibbas import vibrations_xy2
+from .vib_xy2 import vibrations_xy2
+from .c2v import C2V_PRODUCT_TABLE
 
 config.update("jax_enable_x64", True)
 
@@ -37,7 +38,7 @@ Molecule.internal_to_cartesian = valence_bond_coordinates
 if __name__ == "__main__":
 
     # init rotational matrix elements
-    j_angmom = 10
+    j_angmom = 9
     linear = False
     s_rot, k_list, ktau_list = rotme_ovlp(j_angmom, linear)
     jab_rot, k_list, ktau_list = rotme_rot(j_angmom, linear)
@@ -45,7 +46,6 @@ if __name__ == "__main__":
     nbas_rot = len(k_list)
     print("rotational angular momentum:", j_angmom)
     print("number of rotational functions:", nbas_rot)
-    print(ktau_list)
 
     NCOO = 3
 
@@ -144,7 +144,7 @@ if __name__ == "__main__":
     list_w = (w1, w2, w3)
 
     # solutions
-    e, v, sym, quanta, rot_me, cor_me = vibrations_xy2(
+    e, v, quanta, rot_me, cor_me = vibrations_xy2(
         list_psi,
         list_x,
         list_w,
@@ -161,8 +161,24 @@ if __name__ == "__main__":
     )
     print(quanta)
     print(e[0], e - e[0])
-    print(sym)
     print(rot_me.shape, cor_me.shape)
+
+    rot_sym = ktau_list[:, -1]
+    vib_sym = quanta[:, -1]
+    tot_sym = np.concatenate(
+        (
+            vib_sym[:, None].repeat(len(rot_sym), axis=1),
+            rot_sym[None, :].repeat(len(vib_sym), axis=0),
+        ),
+        axis=-1,
+    ).reshape(-1, 2)
+    print(tot_sym)
+    prod_sym = np.array([C2V_PRODUCT_TABLE[(sv, sr)] for (sv, sr) in tot_sym])
+    tot_sym = np.concatenate((tot_sym, prod_sym[:, None]), axis=-1)
+
+    ind = np.where(tot_sym[:, -1] == "A1")
+    print(tot_sym[ind])
+    exit()
 
     h = (
         jnp.diag(e)[:, :, None, None] * s_rot[None, None, :, :]
@@ -178,11 +194,14 @@ if __name__ == "__main__":
     zpe = 3291.1604451003955
     print(e[:21] - zpe)
 
-    q = np.array(quanta)[:, :, None, None] * np.array(ktau_list)[None, None, :, :]
-    q = q.swapaxes(1, 2).reshape(nvib * nrot, -1)
+    q = np.concatenate(
+        (
+            quanta[:, None, :].repeat(nrot, axis=1),
+            ktau_list[None, :, :].repeat(nvib, axis=0),
+        ),
+        axis=-1,
+    ).reshape(-1, 7)
+
     ind = np.argmax(v**2, axis=0)
-    for i in ind:
-        print(i, e[i]-zpe, q[i])
-        if i>21:
-            break
-    print(q.shape)
+    for q_, i in zip(q[ind], range(21)):
+        print(e[i] - zpe, q_)
