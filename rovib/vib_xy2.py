@@ -1,5 +1,5 @@
 import itertools
-from typing import Callable, List, Optional
+from typing import Callable, List
 
 import jax
 import numpy as np
@@ -18,8 +18,6 @@ def vibrations_xy2(
     gmat: Callable,
     pseudo: Callable,
     potential: Callable,
-    grot: Optional[Callable] = None,
-    gcor: Optional[Callable] = None,
     assign_c2v=False,
 ):
     """Solves the eigenvalue problem for vibrational Hamiltonian of an XY2-type triatomic molecule
@@ -76,19 +74,21 @@ def vibrations_xy2(
     jac_r = jac_x_to_r_vmap(x)
     inv_jac_r = jnp.linalg.inv(jac_r)
     g = gmat(r)
-    gvib = g[:, :3, :3]
-    grot = g[:, 3:6, 3:6]
-    gcor = g[:, :3, 3:6]
+    gvib = g[:, :3, :3]  # vibrational part
+    grot = g[:, 3:6, 3:6]  # rotational part
+    gcor = g[:, :3, 3:6]  # Coriolis part
     vmat = jnp.einsum("gi,gj,g,g->ij", psi, psi, potential(r), w)
     umat = jnp.einsum("gi,gj,g,g->ij", psi, psi, pseudo(r), w)
-    dpsi_ = jnp.einsum("xgi,gxy->giy", dpsi, inv_jac_r)
-    tmat = jnp.einsum("gix,gjy,gxy,g->ij", dpsi_, dpsi_, gvib, w)
+    dpsi_r = jnp.einsum("xgi,gxy->giy", dpsi, inv_jac_r)
+    tmat = jnp.einsum("gix,gjy,gxy,g->ij", dpsi_r, dpsi_r, gvib, w)
 
     # eigenvectors and eigenvalues
 
     hmat = 0.5 * tmat + vmat + umat
     enr, vec = jnp.linalg.eigh(hmat)
     psi = jnp.einsum("gi,ij->gj", psi, vec)
+    dpsi = jnp.einsum("xgi,ij->xgj", dpsi, vec)
+    dpsi_r = jnp.einsum("gix,ij->gjx", dpsi_r, vec)
 
     # symmetry labels of eigenstates
 
@@ -107,11 +107,11 @@ def vibrations_xy2(
 
         # check symmetry relation
         for i in range(psi.shape[-1]):
-            ind = np.where(np.abs(psi[:, i]) > 1e-08)
+            ind = np.where(np.abs(psi[:, i]) > 1e-06)
             ratio = np.mean(psi[ind, i] / p12_psi[ind, i])
-            if np.abs(ratio - 1) < 1e-12:
+            if np.abs(ratio - 1) < 1e-6:
                 sym.append("A1")
-            elif np.abs(ratio + 1) < 1e-12:
+            elif np.abs(ratio + 1) < 1e-6:
                 sym.append("B2")
             else:
                 raise ValueError(
@@ -126,8 +126,8 @@ def vibrations_xy2(
 
     grot_me = jnp.einsum("gi,gj,gab,g->ijab", psi, psi, grot, w)
 
-    gcor_me = jnp.einsum("pgi,gj,gpa,g->ija", dpsi, psi, gcor, w) - jnp.einsum(
-        "gi,pgj,gpa,g->ija", psi, dpsi, gcor, w
+    gcor_me = jnp.einsum("gip,gj,gpa,g->ija", dpsi_r, psi, gcor, w) - jnp.einsum(
+        "gi,gjp,gpa,g->ija", psi, dpsi_r, gcor, w
     )
 
     return enr, vec, quanta, grot_me, gcor_me

@@ -1,11 +1,10 @@
-from scipy.special import factorial
-from jax import config
-from jax import Array
 import jax
 import numpy as np
-from numpy.polynomial.hermite import hermval, hermder
-from numpy.polynomial.legendre import legval, legder
+from jax import Array, config
+from numpy.polynomial.hermite import hermder, hermval
+from numpy.polynomial.legendre import legder, legval
 from numpy.typing import NDArray
+from scipy.special import factorial
 
 config.update("jax_enable_x64", True)
 

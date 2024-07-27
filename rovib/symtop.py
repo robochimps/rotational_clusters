@@ -6,7 +6,7 @@ import numpy as np
 from jax import config
 from jax import numpy as jnp
 
-from .c2v import C2V_KTAU_LABELS
+from .c2v import C2V_KTAU_IRREPS
 
 config.update("jax_enable_x64", True)
 
@@ -39,7 +39,7 @@ def tabulate_wang(linear: bool):
         if linear:
             k = 0
             t = j % 2
-            sym = C2V_KTAU_LABELS[(k % 2, t)]
+            sym = C2V_KTAU_IRREPS[(k % 2, t)]
             ktau_list = [(k, t, sym)]
         else:
             ktau_list = []
@@ -49,7 +49,7 @@ def tabulate_wang(linear: bool):
                 else:
                     tau = [0, 1]
                 for t in tau:
-                    sym = C2V_KTAU_LABELS[(k % 2, t)]
+                    sym = C2V_KTAU_IRREPS[(k % 2, t)]
                     ktau_list.append((k, t, sym))
 
         WANG_COEFS[(j, linear)] = (
@@ -259,7 +259,7 @@ def _overlap(jkc1, jkc2):
     )
 
 
-def rotme_ovlp(j: int, linear: bool):
+def rotme_ovlp(j: int, linear: bool = False):
     k_list, ktau_list, wang_coefs = WANG_COEFS[(j, linear)]
     s = jnp.array(
         [[_overlap((j, k1, 1), (j, k2, 1)) for k2 in k_list] for k1 in k_list]
@@ -272,7 +272,7 @@ def rotme_ovlp(j: int, linear: bool):
     return jnp.real(res), k_list, ktau_list
 
 
-def rotme_rot(j: int, linear: bool):
+def rotme_rot(j: int, linear: bool = False):
     k_list, ktau_list, wang_coefs = WANG_COEFS[(j, linear)]
     jxx = jnp.array(
         [[_overlap((j, k1, 1), _jx_jx(j, k2)) for k2 in k_list] for k1 in k_list]
@@ -302,7 +302,7 @@ def rotme_rot(j: int, linear: bool):
         [[_overlap((j, k1, 1), _jz_jz(j, k2)) for k2 in k_list] for k1 in k_list]
     )
     jmat = jnp.array([[jxx, jxy, jxz], [jyx, jyy, jyz], [jzx, jzy, jzz]])
-    res = jnp.einsum("ki,abkl,lj->abij", jnp.conj(wang_coefs), jmat, wang_coefs)
+    res = jnp.einsum("ki,abkl,lj->ijab", jnp.conj(wang_coefs), jmat, wang_coefs)
     max_imag = jnp.max(jnp.abs(jnp.imag(res)))
     assert (
         max_imag < 1e-12
@@ -310,7 +310,7 @@ def rotme_rot(j: int, linear: bool):
     return jnp.real(res), k_list, ktau_list
 
 
-def rotme_cor(j: int, linear: bool):
+def rotme_cor(j: int, linear: bool = False):
     k_list, ktau_list, wang_coefs = WANG_COEFS[(j, linear)]
     jx = jnp.array(
         [[_overlap((j, k1, 1), _jx(j, k2)) for k2 in k_list] for k1 in k_list]
@@ -322,7 +322,7 @@ def rotme_cor(j: int, linear: bool):
         [[_overlap((j, k1, 1), _jz(j, k2)) for k2 in k_list] for k1 in k_list]
     )
     jvec = jnp.array([jx, jy, jz])
-    res = 1j * jnp.einsum("ki,akl,lj->aij", jnp.conj(wang_coefs), jvec, wang_coefs)
+    res = 1j * jnp.einsum("ki,akl,lj->ija", jnp.conj(wang_coefs), jvec, wang_coefs)
     max_imag = jnp.max(jnp.abs(jnp.imag(res)))
     assert (
         max_imag < 1e-12

@@ -1,8 +1,9 @@
+import functools
+
 import jax
 from jax import config
 from jax import numpy as jnp
 from scipy import constants
-import functools
 
 config.update("jax_enable_x64", True)
 
