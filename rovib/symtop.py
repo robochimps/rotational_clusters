@@ -7,6 +7,7 @@ from jax import config
 from jax import numpy as jnp
 
 from .c2v import C2V_KTAU_IRREPS
+from .wigner import wigner_D
 
 config.update("jax_enable_x64", True)
 
@@ -328,3 +329,13 @@ def rotme_cor(j: int, linear: bool = False):
         max_imag < 1e-12
     ), f"i*<J',k',tau'|Ja|J,k,tau> matrix elements are not real-valued, max imaginary component: {max_imag}"
     return jnp.real(res), k_list, jktau_list
+
+
+def symtop_on_grid(j: int, grid, linear: bool = False):
+    k_list, jktau_list, wang_coefs = WANG_COEFS[(j, linear)]
+    # psi[J+m, J+k, ipoint] for k,m = -J..J
+    psi = np.sqrt((2 * j + 1) / (8 * np.pi**2)) * np.conj(wigner_D(j, grid))
+    ind = [k for k in range(-j, j + 1)]
+    map_ind = [ind.index(k) for k in k_list]
+    res = jnp.einsum("ki,mkg->mig", wang_coefs, psi[:, map_ind, :])
+    return res, k_list, jktau_list
