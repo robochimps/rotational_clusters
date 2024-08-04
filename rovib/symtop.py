@@ -5,9 +5,11 @@ from typing import List, Tuple
 import numpy as np
 from jax import config
 from jax import numpy as jnp
+from py3nj import wigner3j
 
 from .c2v import C2V_KTAU_IRREPS
 from .wigner import wigner_D
+from .cartens import SPHER_IND, UMAT_CART_TO_SPHER
 
 config.update("jax_enable_x64", True)
 
@@ -339,3 +341,52 @@ def symtop_on_grid(j: int, grid, linear: bool = False):
     map_ind = [ind.index(k) for k in k_list]
     res = jnp.einsum("ki,mkg->mig", wang_coefs, psi[:, map_ind, :])
     return res, k_list, jktau_list
+
+
+def threej_wang(rank: int, j1: int, j2: int, linear: bool):
+    """Computes three-j symbol contracted with the spherical-to-cartesian
+    transformation for tensor of specified rank, i.e.,
+
+    \sum_\sigma=-\omega^\omega (-1)**k' threej(J, \omega, J', k, \sigma, -k') U_{\omega,\sigma,\alpha}^{(\omega)}
+
+    and transformed the result into Wang's basis.
+    """
+    k_list1, jktau_list1, wang_coefs1 = WANG_COEFS[(j1, linear)]
+    k_list2, jktau_list2, wang_coefs2 = WANG_COEFS[(j2, linear)]
+
+    k1 = np.array(k_list1)
+    k2 = np.array(k_list2)
+    k12 = np.concatenate(
+        (
+            k1[:, None, None].repeat(len(k2), axis=1),
+            k2[None, :, None].repeat(len(k1), axis=0),
+        ),
+        axis=-1,
+    ).reshape(-1, 2)
+    n = len(k12)
+    k1 = k12[:, 0]
+    k2 = k12[:, 1]
+
+    threej = []
+    for omega, sigma in SPHER_IND[rank]:
+        threej.append(
+            (-1) ** k1
+            * wigner3j(
+                [j2 * 2] * n,
+                [omega * 2] * n,
+                [j1 * 2] * n,
+                k2 * 2,
+                [sigma * 2] * n,
+                -k1 * 2,
+                ignore_invalid=True,
+            ).reshape(len(k1), len(k2))
+        )
+
+    threej_wang = jnp.einsum(
+        "ki,skl,lj,sc->cij",
+        jnp.conj(wang_coefs1),
+        threej,
+        wang_coefs2,
+        UMAT_CART_TO_SPHER[rank],
+    )
+    return jktau_list1, jktau_list2, threej_wang
