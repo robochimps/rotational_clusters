@@ -1,5 +1,5 @@
 import itertools
-from typing import Callable, List
+from typing import Callable, List, Optional
 
 import jax
 import numpy as np
@@ -19,6 +19,7 @@ def vibrations_xy2(
     pseudo: Callable,
     potential: Callable,
     assign_c2v=False,
+    ext_oper_list: Optional[List[NDArray[np.float_]]] = None,
 ):
     """Solves the eigenvalue problem for vibrational Hamiltonian of an XY2-type triatomic molecule
 
@@ -119,9 +120,6 @@ def vibrations_xy2(
                     + f"for the state with energy = {enr[i]} is nether close to 1 nor -1"
                 )
 
-    # add symmetry label as last column to the array of quanta
-    quanta = np.concatenate((quanta, np.array(sym)[:, None]), axis=1)
-
     # matrix elements of rotational operators
 
     grot_me = jnp.einsum("gi,gj,gab,g->ijab", psi, psi, grot, w)
@@ -130,4 +128,10 @@ def vibrations_xy2(
         "gi,gjp,gpa,g->ija", psi, dpsi_r, gcor, w
     )
 
-    return enr, vec, quanta, grot_me, gcor_me
+    ext_oper_me = []
+    if ext_oper_list is not None:
+        for oper in ext_oper_list:
+            me = jnp.einsum("gi,gj,g...,g->ij...", psi, psi, oper, w)
+            ext_oper_me.append(me)
+
+    return enr, vec, sym, quanta, grot_me, gcor_me, ext_oper_me
