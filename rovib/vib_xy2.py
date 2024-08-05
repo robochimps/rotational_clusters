@@ -19,7 +19,7 @@ def vibrations_xy2(
     pseudo: Callable,
     potential: Callable,
     assign_c2v=False,
-    ext_oper_list: Optional[List[NDArray[np.float_]]] = None,
+    ext_oper_list: Optional[Callable] = None,
 ):
     """Solves the eigenvalue problem for vibrational Hamiltonian of an XY2-type triatomic molecule
 
@@ -131,7 +131,7 @@ def vibrations_xy2(
     ext_oper_me = []
     if ext_oper_list is not None:
         for oper in ext_oper_list:
-            me = jnp.einsum("gi,gj,g...,g->ij...", psi, psi, oper, w)
+            me = jnp.einsum("gi,gj,g...,g->ij...", psi, psi, oper(r), w)
             ext_oper_me.append(me)
 
     return enr, vec, sym, quanta, grot_me, gcor_me, ext_oper_me
