@@ -344,7 +344,7 @@ def symtop_on_grid(j: int, grid, linear: bool = False):
 
 
 def threej_wang(rank: int, j1: int, j2: int, linear: bool):
-    """Computes three-j symbol contracted with the spherical-to-cartesian
+    """Computes three-j symbol contracted with the cartesian-to-spherical
     transformation for tensor of specified rank, i.e.,
 
     \sum_\sigma=-\omega^\omega (-1)**k' threej(J, \omega, J', k, \sigma, -k') U_{\omega,\sigma,\alpha}^{(\omega)}
@@ -367,26 +367,28 @@ def threej_wang(rank: int, j1: int, j2: int, linear: bool):
     k1 = k12[:, 0]
     k2 = k12[:, 1]
 
-    threej = []
+    threej = {
+        omega: jnp.zeros((2 * omega + 1, len(k1), len(k2)), dtype=np.complex64)
+        for omega in range(rank + 1)
+    }
     for omega, sigma in SPHER_IND[rank]:
-        threej.append(
-            (-1) ** k1
-            * wigner3j(
-                [j2 * 2] * n,
-                [omega * 2] * n,
-                [j1 * 2] * n,
-                k2 * 2,
-                [sigma * 2] * n,
-                -k1 * 2,
-                ignore_invalid=True,
-            ).reshape(len(k1), len(k2))
-        )
+        threej[omega][sigma + omega] = (-1) ** k1 * wigner3j(
+            [j2 * 2] * n,
+            [omega * 2] * n,
+            [j1 * 2] * n,
+            k2 * 2,
+            [sigma * 2] * n,
+            -k1 * 2,
+            ignore_invalid=True,
+        ).reshape(len(k1), len(k2))
 
-    threej_wang = jnp.einsum(
-        "ki,skl,lj,sc->cij",
-        jnp.conj(wang_coefs1),
-        threej,
-        wang_coefs2,
-        UMAT_CART_TO_SPHER[rank],
-    )
+    threej_wang = {}
+    for omega in range(rank + 1):
+        threej_wang[omega] = jnp.einsum(
+            "ki,skl,lj,sc->cij",
+            jnp.conj(wang_coefs1),
+            threej[omega],
+            wang_coefs2,
+            UMAT_CART_TO_SPHER[rank][omega],
+        )
     return jktau_list1, jktau_list2, threej_wang

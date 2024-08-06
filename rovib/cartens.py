@@ -1,56 +1,38 @@
 import numpy as np
 
-# Transformation matrix from Cartesian to spherical-tensor representation
-# for tensors of different ranks (dict keys)
+# Transformation matrix from Cartesian to spherical-tensor representation for rank-1 tensor
 
-UMAT_CART_TO_SPHER = {
+_UMAT_RANK1 = {
+    0: np.array([[0.0, 0.0, 0.0]]),
     1: np.array(
         [
-            [np.sqrt(2.0) / 2.0, -np.sqrt(2.0) * 1j / 2.0, 0],
-            [0, 0, 1.0],
-            [-np.sqrt(2.0) / 2.0, -np.sqrt(2.0) * 1j / 2.0, 0],
+            [np.sqrt(2) / 2, -np.sqrt(2) * 1j / 2, 0],
+            [0, 0, 1],
+            [-np.sqrt(2) / 2, -np.sqrt(2) * 1j / 2, 0],
+        ],
+        dtype=np.complex128,
+    ),
+}
+
+# Transformation matrix from Cartesian to spherical-tensor representation for rank-2 tensor
+
+_UMAT_RANK2 = {
+    0: np.array(
+        [[-1 / np.sqrt(3), 0, 0, 0, -1 / np.sqrt(3), 0, 0, 0, -1 / np.sqrt(3)]]
+    ),
+    1: np.array(
+        [
+            [0, 0, -0.5, 0, 0, 0.5 * 1j, 0.5, -0.5 * 1j, 0],
+            [0, 1.0 / np.sqrt(2) * 1j, 0, -1.0 / np.sqrt(2) * 1j, 0, 0, 0, 0, 0],
+            [0, 0, -0.5, 0, 0, -0.5 * 1j, 0.5, 0.5 * 1j, 0],
         ],
         dtype=np.complex128,
     ),
     2: np.array(
         [
-            [
-                -1.0 / np.sqrt(3.0),
-                0,
-                0,
-                0,
-                -1.0 / np.sqrt(3.0),
-                0,
-                0,
-                0,
-                -1.0 / np.sqrt(3.0),
-            ],
-            [0, 0, -0.5, 0, 0, 0.5 * 1j, 0.5, -0.5 * 1j, 0],
-            [
-                0,
-                1.0 / np.sqrt(2.0) * 1j,
-                0,
-                -1.0 / np.sqrt(2.0) * 1j,
-                0,
-                0,
-                0,
-                0,
-                0,
-            ],
-            [0, 0, -0.5, 0, 0, -0.5 * 1j, 0.5, 0.5 * 1j, 0],
             [0.5, -0.5 * 1j, 0, -0.5 * 1j, -0.5, 0, 0, 0, 0],
             [0, 0, 0.5, 0, 0, -0.5 * 1j, 0.5, -0.5 * 1j, 0],
-            [
-                -1.0 / np.sqrt(6.0),
-                0,
-                0,
-                0,
-                -1.0 / np.sqrt(6.0),
-                0,
-                0,
-                0,
-                (1.0 / 3.0) * np.sqrt(6.0),
-            ],
+            [-1 / np.sqrt(6), 0, 0, 0, -1 / np.sqrt(6), 0, 0, 0, (1 / 3) * np.sqrt(6)],
             [0, 0, -0.5, 0, 0, -0.5 * 1j, -0.5, -0.5 * 1j, 0],
             [0.5, 0.5 * 1j, 0, 0.5 * 1j, -0.5, 0, 0, 0, 0],
         ],
@@ -58,11 +40,7 @@ UMAT_CART_TO_SPHER = {
     ),
 }
 
-# Inverse spherical-tensor to Cartesian transformation matrix
-
-UMAT_SPHER_TO_CART = {
-    key: np.linalg.pinv(val) for key, val in UMAT_CART_TO_SPHER.items()
-}
+UMAT_CART_TO_SPHER = {1: _UMAT_RANK1, 2: _UMAT_RANK2}
 
 # Cartesian components and irreducible representations for tensors of different ranks
 
