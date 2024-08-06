@@ -385,7 +385,7 @@ def threej_wang(rank: int, j1: int, j2: int, linear: bool):
     threej_wang = {}
     for omega in range(rank + 1):
         threej_wang[omega] = jnp.einsum(
-            "ki,skl,lj,sc->cij",
+            "ki,skl,lj,sc->ijc",
             jnp.conj(wang_coefs1),
             threej[omega],
             wang_coefs2,
