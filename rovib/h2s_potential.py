@@ -1,3 +1,5 @@
+"""Potential energy surface for H2S"""
+
 import jax
 from jax import config
 from jax import numpy as jnp
