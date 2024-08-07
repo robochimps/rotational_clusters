@@ -344,12 +344,14 @@ def symtop_on_grid(j: int, grid, linear: bool = False):
 
 
 def threej_wang(rank: int, j1: int, j2: int, linear: bool):
-    """Computes three-j symbol contracted with the cartesian-to-spherical
+    """Computes three-j symbol contracted with the Cartesian-to-spherical
     transformation for tensor of specified rank, i.e.,
 
-    \sum_\sigma=-\omega^\omega (-1)**k' threej(J, \omega, J', k, \sigma, -k') U_{\omega,\sigma,\alpha}^{(\omega)}
+    \sum_\sigma=-\omega^\omega (-1)**k' threej(J, \omega, J', k, \sigma, -k') U_{\omega,\sigma,\\alpha}^{(\omega)}
 
     and transformed the result into Wang's basis.
+    Here, \omega = 0.. `rank` and \\alpha denotes Cartesian components of tensor,
+    e.g., 'x', 'y', 'z' for rank-1 tensor, 'xx', 'xy', 'xz', 'yz', ..., 'zz' for rank-2 tensor.
     """
     k_list1, jktau_list1, wang_coefs1 = WANG_COEFS[(j1, linear)]
     k_list2, jktau_list2, wang_coefs2 = WANG_COEFS[(j2, linear)]
@@ -364,23 +366,24 @@ def threej_wang(rank: int, j1: int, j2: int, linear: bool):
         axis=-1,
     ).reshape(-1, 2)
     n = len(k12)
-    k1 = k12[:, 0]
-    k2 = k12[:, 1]
+    k12_1 = k12[:, 0]
+    k12_2 = k12[:, 1]
 
     threej = {
-        omega: jnp.zeros((2 * omega + 1, len(k1), len(k2)), dtype=np.complex64)
+        omega: np.zeros((2 * omega + 1, len(k1), len(k2)), dtype=np.complex64)
         for omega in range(rank + 1)
     }
-    for omega, sigma in SPHER_IND[rank]:
-        threej[omega][sigma + omega] = (-1) ** k1 * wigner3j(
+    for (omega, sigma) in SPHER_IND[rank]:
+        thrj = (-1) ** np.abs(k12_1) * wigner3j(
             [j2 * 2] * n,
             [omega * 2] * n,
             [j1 * 2] * n,
-            k2 * 2,
+            k12_2 * 2,
             [sigma * 2] * n,
-            -k1 * 2,
+            -k12_1 * 2,
             ignore_invalid=True,
-        ).reshape(len(k1), len(k2))
+        )
+        threej[omega][sigma + omega] = thrj.reshape(len(k1), len(k2))
 
     threej_wang = {}
     for omega in range(rank + 1):
