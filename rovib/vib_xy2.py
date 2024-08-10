@@ -1,3 +1,4 @@
+"""Vibrational solutions for an XY2-type triatomic molecule"""
 import itertools
 from typing import Callable, List, Optional
 
