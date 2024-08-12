@@ -349,7 +349,7 @@ def threej_wang(rank: int, j1: int, j2: int, linear: bool):
 
     \sum_\sigma=-\omega^\omega (-1)**k' threej(J, \omega, J', k, \sigma, -k') U_{\omega,\sigma,\\alpha}^{(\omega)}
 
-    and transformed the result into Wang's basis.
+    and transformes the result into the Wang's basis.
     Here, \omega = 0.. `rank` and \\alpha denotes Cartesian components of tensor,
     e.g., 'x', 'y', 'z' for rank-1 tensor, 'xx', 'xy', 'xz', 'yz', ..., 'zz' for rank-2 tensor.
     """
@@ -370,7 +370,7 @@ def threej_wang(rank: int, j1: int, j2: int, linear: bool):
     k12_2 = k12[:, 1]
 
     threej = {
-        omega: np.zeros((2 * omega + 1, len(k1), len(k2)), dtype=np.complex64)
+        omega: np.zeros((2 * omega + 1, len(k1), len(k2)), dtype=np.complex128)
         for omega in range(rank + 1)
     }
     for (omega, sigma) in SPHER_IND[rank]:
