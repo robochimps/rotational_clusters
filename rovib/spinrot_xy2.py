@@ -16,7 +16,6 @@ KHZ_TO_INVCM = 1.0 / constants.value("speed of light in vacuum") * 10
 def spinrot_xy2(
     f_angmom: float,
     rovib_enr_invcm: Dict[int, Dict[str, np.ndarray]],
-    rovib_qua: Dict[int, Dict[str, np.ndarray]],
     rovib_sr1_me_khz: Dict[Tuple[int, int], Dict[Tuple[str, str], np.ndarray]],
     rovib_sr2_me_khz: Dict[Tuple[int, int], Dict[Tuple[str, str], np.ndarray]],
     spin_states: List[Tuple[int, str]] = [(0, "B2"), (1, "A1")],
@@ -38,8 +37,6 @@ def spinrot_xy2(
             where J is the rotational angular momentum and I is the nuclear spin angular momentum.
         rovib_enr_invcm (dict): Rovibrational energies (in cm^-1) for different values
             of rotational quantum number J and C2v symmetry.
-        rovib_qua (dict): Rovibrational state assignments for different values of J
-            and C2v symmetry.
         rovib_sr1_me_khz (dict): Matrix elements (in kHz) of the spin-rotation tensor
             for atom Y1 in the XY2 molecule.
         rovib_sr2_me_khz (dict): Matrix elements (in kHz) of the spin-rotation tensor
@@ -63,7 +60,7 @@ def spinrot_xy2(
     two_omega = omega * 2
     omega_coef = np.array([1, -np.sqrt(3), np.sqrt(5)])
 
-    j_list = list(rovib_qua.keys())
+    j_list = list(rovib_enr_invcm.keys())
 
     # precompute reduced matrix elements of spin operators
 
@@ -125,8 +122,8 @@ def spinrot_xy2(
     # prepare spin-rovibrational basis quanta
 
     quanta = {sym: [] for sym in allowed_sym}
-    for j in rovib_qua.keys():
-        for rov_sym in rovib_qua[j].keys():
+    for j in rovib_enr_invcm.keys():
+        for rov_sym in rovib_enr_invcm[j].keys():
             for spin, spin_sym in spin_states:
                 tot_sym = C2V_PRODUCT_TABLE[(rov_sym, spin_sym)]
                 if tot_sym in allowed_sym:
