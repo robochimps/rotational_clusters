@@ -5,10 +5,12 @@ for an XY2-type triatomic molecule
 from typing import Dict, List, Tuple
 
 import numpy as np
+from numpy.typing import NDArray
 from py3nj import wigner3j, wigner6j
 from scipy import constants
 
 from .c2v import C2V_PRODUCT_TABLE
+from .cartens import UMAT_SPHER_TO_CART
 
 KHZ_TO_INVCM = 1.0 / constants.value("speed of light in vacuum") * 10
 
@@ -149,9 +151,15 @@ def spinrot_xy2(
                 j2, rov_sym2, spin2, spin_sym2 = qua2
                 rov_enr2 = rovib_enr_invcm[j2][rov_sym2]
 
+                p = spin2 + f_angmom
+                ip = int(p)
+                assert (
+                    abs(p - ip) < 1e-16
+                ), f"spin2 + f_angmom: {spin2} + {f_angmom} = {p} is not an integer number"
+
                 prefac = (
                     0.5
-                    * (-1) ** (spin2 + f_angmom)
+                    * (-1) ** ip
                     * wigner6j(
                         spin1 * 2,
                         j1 * 2,
@@ -193,9 +201,11 @@ def spinrot_xy2(
     return enr, vec, quanta
 
 
-def spin_reduced_me_xy2(I1: float, I2: float, Ia1: float, Ia2: float, tol=1e-14):
-    """Computes reduced matrix element <I' || I_n^{(1)} || I> (n=1,2)
-    of nuclear spin operator for two-spin system.
+def spin_reduced_me_xy2(
+    I1: float, I2: float, Ia1: float, Ia2: float, tol=1e-14
+) -> NDArray[np.float64]:
+    """Computes the reduced matrix elements <I' || I_n^{(1)} || I>
+    of the nuclear spin operators I_n (n=1, 2) for a two-spin system.
 
     Args:
         I1, I2 (float): the bra and ket spin quantum numbers, respectively,
@@ -210,8 +220,21 @@ def spin_reduced_me_xy2(I1: float, I2: float, Ia1: float, Ia2: float, tol=1e-14)
     two_Ia1 = int(Ia1 * 2)
     two_Ia2 = int(Ia2 * 2)
     prefac = np.sqrt((2 * I1 + 1) * (2 * I2 + 1))
-    prefac1 = (-1) ** (Ia1 + Ia2 + I2 + 1) * Ia1 * prefac
-    prefac2 = (-1) ** (Ia1 + Ia2 + I1 + 1) * Ia2 * prefac
+
+    p1 = Ia1 + Ia2 + I2 + 1
+    ip1 = int(p1)
+    assert (
+        abs(p1 - ip1) < 1e-16
+    ), f"Ia1 + Ia2 + I2 + 1: {Ia1} + {Ia2} + {I2} + 1 = {p1} is not an integer number"
+
+    p2 = Ia1 + Ia2 + I1 + 1
+    ip2 = int(p2)
+    assert (
+        abs(p2 - ip2) < 1e-16
+    ), f"Ia1 + Ia2 + I1 + 1: {Ia1} + {Ia2} + {I1} + 1 = {p2} is not an integer number"
+
+    prefac1 = (-1) ** ip1 * Ia1 * prefac
+    prefac2 = (-1) ** ip2 * Ia2 * prefac
     threej1 = wigner3j(two_Ia1, 2, two_Ia1, -two_Ia1, 0, two_Ia1, ignore_invalid=True)
     threej2 = wigner3j(two_Ia2, 2, two_Ia2, -two_Ia2, 0, two_Ia2, ignore_invalid=True)
     sixj1 = wigner6j(two_Ia1, two_I1, two_Ia2, two_I2, two_Ia1, 2, ignore_invalid=True)
@@ -221,4 +244,53 @@ def spin_reduced_me_xy2(I1: float, I2: float, Ia1: float, Ia2: float, tol=1e-14)
         me[0] = prefac1 * sixj1 / threej1
     if np.abs(threej2) > tol:
         me[1] = prefac2 * sixj2 / threej2
+    return me
+
+
+def spin_me_xy2(
+    I1: float, I2: float, Ia1: float, Ia2: float, tol=1e-14
+) -> NDArray[np.complex128]:
+    """Computes the matrix element <I', m' | I_n | I, m>
+    of the nuclear spin operators I_n (n=1, 2) for a two-spin system.
+
+    Args:
+        I1, I2 (float): the bra and ket spin quantum numbers, respectively,
+            i.e., I' and I in the above formula
+        Ia1, Ia2 (float): the nuclear spins of atoms corresponding to n=1 and 2
+
+    Returns:
+        me (array(2*I1+1, 2*I2+1, 3, 2)): Array containing matrix elemens
+            for different values of m' (ranging from -I1 to I1)
+            and m (ranging from -I2 to I2). The third dimension (3) is the x, y, or z
+            component of I_n and the fourth - the 'n' index of the nucleus.
+    """
+    rme = spin_reduced_me_xy2(I1, I2, Ia1, Ia2, tol=tol)
+    me = np.zeros((int(2 * I1) + 1, int(2 * I2) + 1, 3, 2), dtype=np.complex128)
+
+    two_I1 = int(I1 * 2)
+    two_I2 = int(I2 * 2)
+
+    for im1, m1 in enumerate(np.linspace(-I1, I1, int(2 * I1) + 1)):
+        two_m1 = int(m1 * 2)
+
+        for im2, m2 in enumerate(np.linspace(-I2, I2, int(2 * I2) + 1)):
+            two_m2 = int(m2 * 2)
+
+            p = I1 - m1
+            ip = int(p)
+            assert (
+                abs(p - ip) < 1e-16
+            ), f"I1 - m1: {I1} - {m1} = {p} is not an integer number"
+
+            threej = wigner3j(
+                [two_I1] * 3,
+                [2, 2, 2],
+                [two_I2] * 3,
+                [-two_m1] * 3,
+                [-2, 0, 2],
+                [two_m2] * 3,
+                ignore_invalid=True,
+            )
+            prefac = (-1) ** ip * np.dot(UMAT_SPHER_TO_CART[1], threej)
+            me[im1, im2] = prefac[:, None] * rme[None, :]
     return me
