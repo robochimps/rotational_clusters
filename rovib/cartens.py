@@ -3,7 +3,6 @@ import numpy as np
 # Transformation matrix from Cartesian to spherical-tensor representation for rank-1 tensor
 
 _UMAT_RANK1 = {
-    0: np.array([[0.0, 0.0, 0.0]]),
     1: np.array(
         [
             [np.sqrt(2) / 2, -np.sqrt(2) * 1j / 2, 0],
@@ -41,6 +40,11 @@ _UMAT_RANK2 = {
 }
 
 UMAT_CART_TO_SPHER = {1: _UMAT_RANK1, 2: _UMAT_RANK2}
+
+UMAT_SPHER_TO_CART = {
+    rank: np.linalg.pinv(np.concatenate(list(tens.values()), axis=0))
+    for rank, tens in UMAT_CART_TO_SPHER.items()
+}
 
 # Cartesian components and irreducible representations for tensors of different ranks
 
