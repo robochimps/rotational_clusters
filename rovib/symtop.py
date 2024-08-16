@@ -371,7 +371,7 @@ def threej_wang(rank: int, j1: int, j2: int, linear: bool):
 
     threej = {
         omega: np.zeros((2 * omega + 1, len(k1), len(k2)), dtype=np.complex128)
-        for omega in range(rank + 1)
+        for omega in UMAT_CART_TO_SPHER[rank].keys()
     }
     for (omega, sigma) in SPHER_IND[rank]:
         thrj = (-1) ** np.abs(k12_1) * wigner3j(
@@ -386,7 +386,7 @@ def threej_wang(rank: int, j1: int, j2: int, linear: bool):
         threej[omega][sigma + omega] = thrj.reshape(len(k1), len(k2))
 
     threej_wang = {}
-    for omega in range(rank + 1):
+    for omega in UMAT_CART_TO_SPHER[rank].keys():
         threej_wang[omega] = jnp.einsum(
             "ki,skl,lj,sc->ijc",
             jnp.conj(wang_coefs1),
