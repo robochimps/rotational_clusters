@@ -18,6 +18,7 @@ KHZ_TO_INVCM = 1.0 / constants.value("speed of light in vacuum") * 10
 def spinrot_xy2(
     f_angmom: float,
     rovib_enr_invcm: Dict[int, Dict[str, np.ndarray]],
+    rovib_qua: Dict[int, Dict[str, np.ndarray]],
     rovib_sr1_me_khz: Dict[Tuple[int, int], Dict[Tuple[str, str], np.ndarray]],
     rovib_sr2_me_khz: Dict[Tuple[int, int], Dict[Tuple[str, str], np.ndarray]],
     spin_states: List[Tuple[int, str]] = [(0, "B2"), (1, "A1")],
@@ -39,6 +40,8 @@ def spinrot_xy2(
             where J is the rotational angular momentum and I is the nuclear spin angular momentum.
         rovib_enr_invcm (dict): Rovibrational energies (in cm^-1) for different values
             of rotational quantum number J and C2v symmetry.
+        rovib_qua (dict): Rovibrational state assignments for different values
+            of rotational quantum number J and C2v symmetry.
         rovib_sr1_me_khz (dict): Matrix elements (in kHz) of the spin-rotation tensor
             for atom Y1 in the XY2 molecule.
         rovib_sr2_me_khz (dict): Matrix elements (in kHz) of the spin-rotation tensor
@@ -54,7 +57,8 @@ def spinrot_xy2(
         enr (dict): Hyperfine energies for each symmetry label specified in `allowed_sym`.
         vec (dict): Eigenvectors corresponding to the hyperfine energies for each symmetry.
         qua (dict): Quantum number assignments for each symmetry, where each tuple
-            contains (J, rov_sym, I, spin_sym). Here, J and I are the rotational and spin quantum
+            contains (rov_id, *rov_quanta, I, spin_sym).
+            TODO: change the quanta description .... Here, J and I are the rotational and spin quantum
             numbers, respectively, and rov_sym and spin_sym denote the symmetries of the rovibrational
             and spin states.
     """
@@ -138,6 +142,7 @@ def spinrot_xy2(
 
     enr = {}
     vec = {}
+    qua = {}
 
     for sym in allowed_sym:
         hmat = []
@@ -198,7 +203,23 @@ def spinrot_xy2(
 
         enr[sym], vec[sym] = np.linalg.eigh(hmat)
 
-    return enr, vec, quanta
+        qua[sym] = np.concatenate(
+            [
+                np.concatenate(
+                    (
+                        np.arange(len(rovib_qua[j][rov_sym]))[:, None],
+                        rovib_qua[j][rov_sym],
+                        np.repeat(i, len(rovib_qua[j][rov_sym]))[:, None],
+                        np.repeat(spin_sym, len(rovib_qua[j][rov_sym]))[:, None],
+                    ),
+                    axis=-1,
+                )
+                for (j, rov_sym, i, spin_sym) in quanta[sym]
+            ],
+            axis=0,
+        )
+
+    return enr, vec, qua
 
 
 def spin_reduced_me_xy2(
