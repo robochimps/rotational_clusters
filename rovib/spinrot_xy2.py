@@ -57,11 +57,9 @@ def spinrot_xy2(
         enr (dict): Hyperfine energies for each symmetry label specified in `allowed_sym`.
         vec (dict): Eigenvectors corresponding to the hyperfine energies for each symmetry.
         qua (dict): Quantum number assignments for each symmetry, where each tuple
-            contains (rov_id, *rov_qua, I, spin_sym).
-            Here, rov_id is the index of rovibrational state,
-            rov_qua is the set of rovibrational quanta provided at the input,
-            I is the spin quantum number,
-            and spin_sym denotes the symmetry of the spin state.
+            contains (*rov_qua, I, spin_sym).
+            Here, rov_qua is the set of rovibrational quanta provided at the input,
+            I is the spin quantum number, and spin_sym denotes the symmetry of the spin state.
     """
     omega = np.array([0, 1, 2])
     two_omega = omega * 2
@@ -208,7 +206,6 @@ def spinrot_xy2(
             [
                 np.concatenate(
                     (
-                        np.arange(len(rovib_qua[j][rov_sym]))[:, None],
                         rovib_qua[j][rov_sym],
                         np.repeat(i, len(rovib_qua[j][rov_sym]))[:, None],
                         np.repeat(spin_sym, len(rovib_qua[j][rov_sym]))[:, None],

@@ -8,7 +8,7 @@ from jax import numpy as jnp
 from py3nj import wigner3j
 
 from .c2v import C2V_KTAU_IRREPS
-from .wigner import wigner_D
+from .wigner import wigner_D, _jy_eig
 from .cartens import SPHER_IND, UMAT_CART_TO_SPHER
 
 config.update("jax_enable_x64", True)
@@ -343,6 +343,28 @@ def symtop_on_grid(j: int, grid, linear: bool = False):
     return res, k_list, jktau_list
 
 
+def symtop_on_grid_split_angles(j: int, alpha, beta, gamma, linear: bool = False):
+    k_list_wang, jktau_list, wang_coefs = WANG_COEFS[(j, linear)]
+    ind = list(range(-j, j + 1))
+    wang_map = [ind.index(k) for k in k_list_wang]
+    ind = np.array(ind)
+
+    v = _jy_eig(j)
+    em = np.exp(1j * alpha[None, :] * ind[:, None])
+    ek = np.exp(1j * gamma[None, :] * ind[:, None])
+
+    res_k = np.einsum(
+        "kt,ki,kg->tig", wang_coefs, v[wang_map], ek[wang_map], optimize="optimal"
+    )  # (ktau, mu, point)
+
+    res_m = np.einsum(
+        "mi,mg->mig", np.conj(v), em, optimize="optimal"
+    )  # (m, mu, point)
+
+    eb = np.exp(-1j * beta[None, :] * ind[:, None])  # (mu, point)
+    return res_k, res_m, eb, k_list_wang, jktau_list
+
+
 def threej_wang(rank: int, j1: int, j2: int, linear: bool):
     """Computes three-j symbol contracted with the Cartesian-to-spherical
     transformation for tensor of specified rank, i.e.,
@@ -373,7 +395,7 @@ def threej_wang(rank: int, j1: int, j2: int, linear: bool):
         omega: np.zeros((2 * omega + 1, len(k1), len(k2)), dtype=np.complex128)
         for omega in UMAT_CART_TO_SPHER[rank].keys()
     }
-    for (omega, sigma) in SPHER_IND[rank]:
+    for omega, sigma in SPHER_IND[rank]:
         thrj = (-1) ** np.abs(k12_1) * wigner3j(
             [j2 * 2] * n,
             [omega * 2] * n,
