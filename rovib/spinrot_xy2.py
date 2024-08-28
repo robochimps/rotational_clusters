@@ -10,9 +10,113 @@ from py3nj import wigner3j, wigner6j
 from scipy import constants
 
 from .c2v import C2V_PRODUCT_TABLE
-from .cartens import UMAT_SPHER_TO_CART
+from .cartens import UMAT_SPHER_TO_CART, SPHER_IND
 
 KHZ_TO_INVCM = 1.0 / constants.value("speed of light in vacuum") * 10
+
+
+def dipole_xy2(
+    qua: Dict[float, Dict[str, np.ndarray]],
+    vec: Dict[float, Dict[str, np.ndarray]],
+    rovib_dipole_me: Dict[Tuple[int, int], Dict[Tuple[str, str], np.ndarray]],
+):
+
+    rank = 1
+
+    # compute M-tensor
+
+    mmat = {}
+    for f1 in qua.keys():
+        for f2 in qua.keys():
+
+            m1 = np.linspace(-f1, -f1, int(2 * f1) + 1)
+            m2 = np.linspace(-f2, -f2, int(2 * f2) + 1)
+            m12 = np.concatenate(
+                (
+                    m1[:, None, None].repeat(len(m2), axis=1),
+                    m2[None, :, None].repeat(len(m1), axis=0),
+                ),
+                axis=-1,
+            ).reshape(-1, 2)
+            n = len(m12)
+            m12_1, m12_2 = m12.T
+
+            p = -(m12_1 - f1)
+            ip = p.astype(int)
+            assert np.all(
+                abs(p - ip) < 1e-16
+            ), f"f1 - m1: {f1} - {m12_1} is not an integer number"
+            prefac = (-1) ** ip * np.sqrt((2 * f1 + 1) * (2 * f2 + 1))
+
+            threej = [
+                wigner3j(
+                    [f1 * 2] * n,
+                    [omega] * n,
+                    [f2 * 2] * n,
+                    -m12_1 * 2,
+                    [sigma * 2] * n,
+                    m12_2 * 2,
+                ).reshape(len(m1), len(m2))
+                for (omega, sigma) in SPHER_IND[rank]
+            ]
+            mmat[(f1, f2)] = prefac * np.einsum(
+                "skl,cs->klc",
+                threej,
+                UMAT_SPHER_TO_CART[rank],
+                optimize="optimal",
+            )
+
+    # compute K-tensor
+
+    for f1 in qua.keys():
+        for sym1 in qua[f1].keys():
+            vec1 = vec[f1][sym1]
+
+            for f2 in qua.keys():
+                for sym2 in qua[f2].keys():
+                    vec2 = vec[f2][sym2]
+
+                    hmat = []
+                    for j1, rov_sym1, i1, spin_sym1, rov_qua1 in qua[f1][sym1]:
+                        hrow = []
+                        for j2, rov_sym2, i2, spin_sym2, rov_qua2 in qua[f2][sym2]:
+
+                            if i1 == i2:
+                                p = i2 + f2
+                                ip = int(p)
+                                assert (
+                                    abs(p - ip) < 1e-16
+                                ), f"I2 + F2: {i2} + {f2} is not an integer number"
+                                prefac = (
+                                    (-1) ** ip
+                                    * np.sqrt((2 * j1 + 1) * (2 * j2 + 1))
+                                    * wigner6j(
+                                        j1 * 2,
+                                        int(f1 * 2),
+                                        int(i2 * 2),
+                                        int(f2 * 2),
+                                        int(j2 * 2),
+                                        2,
+                                    )
+                                )
+                                try:
+                                    me = rovib_dipole_me[(j1, j2)][(rov_sym1, rov_sym2)]
+                                except KeyError:
+                                    me = 0
+                            else:
+                                me = 0
+
+                            if isinstance(me, np.ndarray):
+                                hrow.append(me)
+                            else:
+                                hrow.append(np.zeros((len(rov_qua1), len(rov_qua2))))
+
+                        hmat.append(hrow)
+
+                    # transform dipole matrix elements to hyperfine basis
+                    hmat = np.einsum(
+                        "ik,ij,jl->kl", np.conj(vec1), hmat, vec2, optimize="optimal"
+                    )
 
 
 def spinrot_xy2(
@@ -57,9 +161,10 @@ def spinrot_xy2(
         enr (dict): Hyperfine energies for each symmetry label specified in `allowed_sym`.
         vec (dict): Eigenvectors corresponding to the hyperfine energies for each symmetry.
         qua (dict): Quantum number assignments for each symmetry, where each tuple
-            contains (*rov_qua, I, spin_sym).
-            Here, rov_qua is the set of rovibrational quanta provided at the input,
-            I is the spin quantum number, and spin_sym denotes the symmetry of the spin state.
+            contains (J, rov_sym, I, spin_sym, *rov_qua).
+            Here, J is the rotational quantum number, rov_sym is the symmetry of the rovibrational
+            state, I is the spin quantum number, spin_sym denotes the symmetry of the spin state,
+            and rov_qua is the set of rovibrational quanta provided at the input,
     """
     omega = np.array([0, 1, 2])
     two_omega = omega * 2
@@ -206,9 +311,11 @@ def spinrot_xy2(
             [
                 np.concatenate(
                     (
-                        rovib_qua[j][rov_sym],
+                        np.repeat(j, len(rovib_qua[j][rov_sym]))[:, None],
+                        np.repeat(rov_sym, len(rovib_qua[j][rov_sym]))[:, None],
                         np.repeat(i, len(rovib_qua[j][rov_sym]))[:, None],
                         np.repeat(spin_sym, len(rovib_qua[j][rov_sym]))[:, None],
+                        rovib_qua[j][rov_sym],
                     ),
                     axis=-1,
                 )
