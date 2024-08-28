@@ -8,21 +8,24 @@
 
 [x] Add vibrational matrix elements of spin-rotation
 
-[ ] Add vibrational matrix elements of dipole moment, electric field gradient (for $\text{D}_2\text{S}$ molecule)
+[x] Add vibrational matrix elements of dipole moment
 
 [x] Implement spin-rotation interaction.
 
-[ ] Implement quadrupole interaction.
+[x] Compute hyperfine components of cluster states.
 
-[ ] Compute hyperfine components of cluster states.
+[x] Implement spin-density, complute with and without Stark effect
 
-[ ] Implement dipole interactione
-
-[ ] Implement nuclear quadrupole interaction (for $\text{D}_2\text{S}$ molecule)
+[ ] Implement dipole interaction
 
 [ ] Compute Stark effect for rovibrational and hypefine cluster states
 
-[ ] Implement spin-density, complute with and without Stark effect
+[ ] Implement quadrupole interaction.
+
+[ ] Add vibrational matrix elements of electric field gradient (for $\text{D}_2\text{S}$ molecule)
+
+[ ] Implement nuclear quadrupole interaction (for $\text{D}_2\text{S}$ molecule)
+
 
 [ ] Improve performance of J=0 basis using GPU implementation ideas from `flows`
 
