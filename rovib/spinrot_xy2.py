@@ -10,7 +10,7 @@ from py3nj import wigner3j, wigner6j
 from scipy import constants
 
 from .c2v import C2V_PRODUCT_TABLE
-from .cartens import UMAT_SPHER_TO_CART, SPHER_IND
+from .cartens import SPHER_IND, UMAT_SPHER_TO_CART
 
 KHZ_TO_INVCM = 1.0 / constants.value("speed of light in vacuum") * 10
 
@@ -41,7 +41,7 @@ def dipole_xy2(
             n = len(m12)
             m12_1, m12_2 = m12.T
 
-            p = -(m12_1 - f1)
+            p = f1 - m12_1
             ip = p.astype(int)
             assert np.all(
                 abs(p - ip) < 1e-16
@@ -68,25 +68,27 @@ def dipole_xy2(
 
     # compute K-tensor
 
+    hmat = []
     for f1 in qua.keys():
         for sym1 in qua[f1].keys():
             vec1 = vec[f1][sym1]
 
+            hrow = []
             for f2 in qua.keys():
                 for sym2 in qua[f2].keys():
                     vec2 = vec[f2][sym2]
 
-                    hmat = []
+                    kmat = []
                     for j1, rov_sym1, i1, spin_sym1, rov_qua1 in qua[f1][sym1]:
-                        hrow = []
+                        krow = []
                         for j2, rov_sym2, i2, spin_sym2, rov_qua2 in qua[f2][sym2]:
 
                             if i1 == i2:
-                                p = i2 + f2
+                                p = i2 + f2 + j1 + j2
                                 ip = int(p)
                                 assert (
                                     abs(p - ip) < 1e-16
-                                ), f"I2 + F2: {i2} + {f2} is not an integer number"
+                                ), f"I2 + F2 + J1 + J2: {i2} + {f2} + {j1} + {j2} is not an integer number"
                                 prefac = (
                                     (-1) ** ip
                                     * np.sqrt((2 * j1 + 1) * (2 * j2 + 1))
@@ -107,16 +109,19 @@ def dipole_xy2(
                                 me = 0
 
                             if isinstance(me, np.ndarray):
-                                hrow.append(me)
+                                krow.append(me)
                             else:
-                                hrow.append(np.zeros((len(rov_qua1), len(rov_qua2))))
+                                krow.append(np.zeros((len(rov_qua1), len(rov_qua2))))
 
-                        hmat.append(hrow)
+                        kmat.append(krow)
 
                     # transform dipole matrix elements to hyperfine basis
-                    hmat = np.einsum(
-                        "ik,ij,jl->kl", np.conj(vec1), hmat, vec2, optimize="optimal"
+                    kmat = np.einsum(
+                        "ik,ij,jl->kl", np.conj(vec1), kmat, vec2, optimize="optimal"
                     )
+
+                    hrow.append(kmat * mmat[(f1, f2)])
+            hmat.append(hrow)
 
 
 def spinrot_xy2(
