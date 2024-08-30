@@ -19,7 +19,27 @@ def dipole_xy2(
     qua: Dict[float, Dict[str, np.ndarray]],
     vec: Dict[float, Dict[str, np.ndarray]],
     rovib_dipole_me: Dict[Tuple[int, int], Dict[Tuple[str, str], np.ndarray]],
-):
+) -> np.ndarray:
+    """
+    Computes the matrix elements of the laboratory-frame dipole moment operator 
+    between hyperfine states.
+
+    Args:
+        qua (dict): A dictionary containing the hyperfine state assignments 
+            for different values of the spin-rotational angular momentum quantum number (F) 
+            and C2v symmetry. This structure is identical to the `qua` output of the 
+            `spinrot_xy2` function.
+        vec (dict): A dictionary containing the hyperfine eigenvectors for different 
+            values of F and C2v symmetry.
+        rovib_dipole_me (dict): A dictionary of matrix elements representing the dipole 
+            moment operator.
+
+    Returns:
+        hmat (ndarray): A 3D array containing the matrix elements of the dipole moment operator. 
+            The first dimension (0, 1, 2 corresponding to X, Y, Z) represents the Cartesian 
+            component of the dipole moment in the laboratory frame. The remaining two 
+            dimensions correspond to the bra and ket hyperfine functions.
+    """
 
     rank = 1
 
@@ -60,7 +80,7 @@ def dipole_xy2(
                 for (omega, sigma) in SPHER_IND[rank]
             ]
             mmat[(f1, f2)] = prefac * np.einsum(
-                "skl,cs->klc",
+                "skl,cs->ckl",
                 threej,
                 UMAT_SPHER_TO_CART[rank],
                 optimize="optimal",
@@ -120,7 +140,7 @@ def dipole_xy2(
                         "ik,ij,jl->kl", np.conj(vec1), kmat, vec2, optimize="optimal"
                     )
 
-                    hrow.append(kmat * mmat[(f1, f2)])
+                    hrow.append(mmat[(f1, f2)] * kmat)
             hmat.append(hrow)
 
 
@@ -137,7 +157,7 @@ def spinrot_xy2(
 ) -> Tuple[
     Dict[str, np.ndarray],
     Dict[str, np.ndarray],
-    Dict[str, List[Tuple[float, str, float, str]]],
+    Dict[str, np.ndarray],
 ]:
     """
     Computes spin-rotation hyperfine energies and wavefunctions for an XY2-type triatomic molecule.
