@@ -19,6 +19,7 @@ KHZ_TO_INVCM = 1.0 / constants.value("speed of light in vacuum") * 10
 def dipole_xy2(
     qua: Dict[float, Dict[str, np.ndarray]],
     vec: Dict[float, Dict[str, np.ndarray]],
+    rovib_qua: Dict[int, Dict[str, np.ndarray]],
     rovib_dipole_me: Dict[Tuple[int, int], Dict[Tuple[str, str], np.ndarray]],
     m_val: float = None,
 ) -> np.ndarray:
@@ -27,31 +28,60 @@ def dipole_xy2(
     between hyperfine states.
 
     Args:
-        qua (dict): A dictionary containing the hyperfine state assignments
-            for different values of the spin-rotational angular momentum quantum number F
-            and C2v symmetry. This structure is identical to the `quanta_block` output of the
-            `spinrot_xy2` function.
-        vec (dict): A dictionary containing the hyperfine eigenvectors for different
-            values of F and C2v symmetry.
-        rovib_dipole_me (dict): A dictionary of rovibrational matrix elements of the dipole
-            moment operator.
-            The structure is rovib_dipole_me[(J1, J2)][(sym1, sym2)][istate1, istate2, omega],
-            where J1 and J2 are integer values of the bra and ket angular momentum quantum numbers,
-            sym1, sym2 are strings representing symmetries of the bra and ket rovibrational states,
-            istate1, istate2 are integer indices of the bra and ket rovibrational states,
-            and omega is the spherical tensor irrep index. For rank-1 operators, omega=[1],
-            for rank-2 operators, omega=[0, 1, 2]
+        qua (dict): Dictionary containing hyperfine state assignments for different
+            values of the spin-rotational angular momentum quantum number F and C2v symmetry.
+            The structure matches the `quanta_block` output of the `spinrot_xy2` function.
+            Each element is a tuple in the format (J, rov_sym, I, spin_sym, no_rov_states), where:
+            - J (int): Rotational quantum number.
+            - rov_sym (str): Rovibrational state symmetry label.
+            - I (int): Nuclear spin quantum number.
+            - spin_sym (str): Spin state symmetry label.
+            - no_rov_states (int): Number of rovibrational states.
+
+        vec (dict): Dictionary containing the hyperfine eigenvectors for different values of
+            F and C2v symmetry. The keys are the quantum numbers, and the values are
+            the corresponding eigenvectors.
+
+        rovib_qua (dict): Dictionary containing rovibrational state assignments for different
+            values of the rotational quantum number J and C2v symmetry. The structure is:
+            `rovib_qua[J][sym][istate, :]`, where:
+            - J (int): Rotational angular momentum quantum number.
+            - sym (str): Symmetry of the rovibrational state.
+            - istate (int): Index of the rovibrational state.
+            The last dimension corresponds to a set of rovibrational quantum numbers (str)
+            that describe the rovibrational state.
+
+        rovib_dipole_me (dict): Dictionary containing the rovibrational matrix elements of the
+            dipole moment operator. The structure is:
+            `rovib_dipole_me[(J1, J2)][(sym1, sym2)][istate1, istate2, omega]`, where:
+            - J1, J2 (int): Rotational quantum numbers for the bra and ket states, respectively.
+            - sym1, sym2 (str): Symmetry labels for the bra and ket rovibrational states, respectively.
+            - istate1, istate2 (int): Indices of the bra and ket rovibrational states.
+            - omega (int or list[int]): Spherical tensor irreducible representation index.
+                For rank-1 operators, omega = [1]; for rank-2 operators, omega = [0, 1, 2].
 
     Returns:
-        hmat (ndarray): A 3D array containing the matrix elements of the dipole moment operator.
-            The first dimension (0, 1, 2 corresponding to X, Y, Z) represents the Cartesian
-            component of the dipole moment in the laboratory frame. The remaining two
-            dimensions correspond to the bra and ket hyperfine functions.
-        coupl_qua (ndarray): An array containing the quantum numbers in dipole-coupled basis.
-            Each element is a tuple (F, sym, m_F, *qua), where F is the quantum number of
-            the total spin-rotational angular momentum, sym is the symmetry of hyperfine state,
-            m_F is the quantum number of the Z-projection of the total angular momentum,
-            and qua is the set of spin-rovibrational quanta provided at the input.
+        hmat (numpy.ndarray): 3D array containing the matrix elements of the dipole moment operator.
+            The first dimension (0, 1, 2) corresponds to the Cartesian components (X, Y, Z) of the
+            dipole moment in the laboratory frame. The other two dimensions correspond to the bra
+            and ket hyperfine states.
+
+        coupl_qua (numpy.ndarray): Array containing quantum numbers in the dipole-coupled basis
+            with resolution down to the rovibrational state level. Each element is a tuple:
+            (F, m_F, sym, J, rov_sym, I, spin_sym, *rovib_qua), where:
+            - F (str): Total spin-rotational angular momentum quantum number.
+            - m_F (str): Magnetic quantum number.
+            - sym (str): Hyperfine-state symmetry label.
+            - J (str): Rotational quantum number.
+            - rov_sym (str): Rovibrational-state symmetry.
+            - I (str): Nuclear spin quantum number.
+            - spin_sym (str): Spin-state symmetry label.
+            - *rovib_qua[J][rov_sym] (tuple): Rovibrational quantum numbers.
+
+        coupl_qua_block (numpy.ndarray): Array containing quantum numbers in the dipole-coupled basis
+            with resolution corresponding to hyperfine states. Each element is a tuple:
+            (F, m_F, sym, J, rov_sym, I, spin_sym, no_rov_states), where:
+            - no_rov_states (int): Number of rovibrational states.
     """
 
     # compute M-matrix
@@ -197,8 +227,9 @@ def dipole_xy2(
 
     hmat = np.block(hmat)
 
-    # assing quantum numbers
-    coupl_qua = []
+    # assing quantum numbers at hyperfine-state resolution
+
+    coupl_qua_block = []
     for f in qua.keys():
         for sym in qua[f].keys():
             if m_val is None:
@@ -209,16 +240,38 @@ def dipole_xy2(
                 q = np.concatenate(
                     (
                         np.repeat(f, len(qua[f][sym]))[:, None],
-                        np.repeat(sym, len(qua[f][sym]))[:, None],
                         np.repeat(m, len(qua[f][sym]))[:, None],
+                        np.repeat(sym, len(qua[f][sym]))[:, None],
                         qua[f][sym],
                     ),
                     axis=-1,
                 )
-                coupl_qua.append(q)
-    coupl_qua = np.concatenate(coupl_qua, axis=0)
+                coupl_qua_block.append(q)
+    coupl_qua_block = np.concatenate(coupl_qua_block, axis=0)
 
-    return hmat, coupl_qua
+    # assing quantum numbers at rovibrational-state resolution
+
+    coupl_qua = np.concatenate(
+        [
+            np.concatenate(
+                (
+                    np.repeat(f, len(rovib_qua[int(j)][rov_sym]))[:, None],
+                    np.repeat(m, len(rovib_qua[int(j)][rov_sym]))[:, None],
+                    np.repeat(sym, len(rovib_qua[int(j)][rov_sym]))[:, None],
+                    np.repeat(j, len(rovib_qua[int(j)][rov_sym]))[:, None],
+                    np.repeat(rov_sym, len(rovib_qua[int(j)][rov_sym]))[:, None],
+                    np.repeat(i, len(rovib_qua[int(j)][rov_sym]))[:, None],
+                    np.repeat(spin_sym, len(rovib_qua[int(j)][rov_sym]))[:, None],
+                    rovib_qua[int(j)][rov_sym],
+                ),
+                axis=-1,
+            )
+            for (f, m, sym, j, rov_sym, i, spin_sym, nstates) in coupl_qua_block
+        ],
+        axis=0,
+    )
+
+    return hmat, coupl_qua, coupl_qua_block
 
 
 def spinrot_xy2(
@@ -239,46 +292,62 @@ def spinrot_xy2(
     """
     Computes spin-rotation hyperfine energies and wavefunctions for an XY2-type triatomic molecule.
 
-    See `h2s_hyperfine.py` for the use example.
-
     Args:
         f_angmom (float): Quantum number corresponding to the total angular momentum F = J + I,
             where J is the rotational angular momentum and I is the nuclear spin angular momentum.
+
         rovib_enr_invcm (dict): Rovibrational energies (in cm^-1) for different values
             of rotational quantum number J and C2v symmetry.
-        rovib_qua (dict): Rovibrational state assignments for different values
-            of rotational quantum number J and C2v symmetry.
-        rovib_sr1_me_khz (dict): Rovibrational matrix elements (in kHz) of the spin-rotation tensor
-            for atom Y1 in the XY2 molecule.
-            The structure is rovib_sr1_me_khz[(J1, J2)][(sym1, sym2)][istate1, istate2, omega],
-            where J1 and J2 are integer values of the bra and ket angular momentum quantum numbers,
-            sym1, sym2 are strings representing symmetries of the bra and ket rovibrational states,
-            istate1, istate2 are integer indices of the bra and ket rovibrational states,
-            and omega is the spherical tensor irrep index. For the rank-2 operators, omega=[0, 1, 2].
-        rovib_sr2_me_khz (dict): Rovibrational matrix elements (in kHz) of the spin-rotation tensor
-            for atom Y2 in the XY2 molecule.
+
+        rovib_qua (dict): Dictionary containing rovibrational state assignments for different
+            values of the rotational quantum number J and C2v symmetry. The structure is:
+            `rovib_qua[J][sym][istate, :]`, where:
+            - J (int): Rotational angular momentum quantum number.
+            - sym (str): Symmetry of the rovibrational state.
+            - istate (int): Index of the rovibrational state.
+            The last dimension corresponds to a set of rovibrational quantum numbers (str)
+            that describe the rovibrational state.
+
+        rovib_sr1_me_khz (dict): Dictionary containing the rovibrational matrix elements (in kHz)
+            of the spin-rotation tensor for atom Y1 in the XY2 molecule. The structure is:
+            `rovib_sr1_me_khz[(J1, J2)][(sym1, sym2)][istate1, istate2, omega]`, where:
+            - J1, J2 (int): Rotational quantum numbers for the bra and ket states, respectively.
+            - sym1, sym2 (str): Symmetry labels for the bra and ket rovibrational states, respectively.
+            - istate1, istate2 (int): Indices of the bra and ket rovibrational states.
+            - omega (int or list[int]): Spherical tensor irreducible representation index.
+                For rank-2 operators, omega = [0, 1, 2].
+
+        rovib_sr2_me_khz (dict): Dictionary containing the rovibrational matrix elements (in kHz)
+            of the spin-rotation tensor for atom Y2 in the XY2 molecule.
+
         spin_states (list): A list containing spin states, where each element represents
             the total spin quantum number I and its corresponding symmetry in the C2v point group.
+
         spins (list of float): A list containing the spins of atoms Y1 and Y1, respectively.
+
         allowed_sym (list): A list of symmetry labels that are allowed for spin-rovibrational
             states according to the Pauli exclusion principle.
+
         tol (float): Tolerance level for treating certain three-j symbols as zero.
 
     Returns:
         enr (dict): Hyperfine energies for each symmetry label specified in `allowed_sym`.
+
         vec (dict): Eigenvectors corresponding to the hyperfine energies for each symmetry.
-        qua (dict): Quantum number assignments for each symmetry, where each tuple
-            contains (J, rov_sym, I, spin_sym, *rov_qua).
-            Here, J is the rotational quantum number, rov_sym is the symmetry of the rovibrational
-            state, I is the spin quantum number, spin_sym denotes the symmetry of the spin state,
-            and rov_qua is the set of rovibrational quanta provided at the input.
-            The list of quanta runs over all hyperfine states.
-        quanta_block (dict): Quantum number assignments for each symmetry, where each tuple
-            contains (J, rov_sym, I, spin_sym, no_rov_states).
-            Here, no_rov_states denotes the number of rovibrational states corresponding
-            to rotational quantum number J and rovibrational symmetry rov_sym.
-            The list of quanta runs over blocks of states with different J, rov_sym, I, and spin_sym,
-            and does not include rovibrational quanta.
+
+        qua (dict): Quantum numbers in the hyperfine basis for each symmetry of hyperfine state,
+            where each element is a tuple:
+            (J, rov_sym, I, spin_sym, *rov_qua).
+            - J (str): Rotational quantum number.
+            - rov_sym (str): Rovibrational-state symmetry.
+            - I (str): Nuclear spin quantum number.
+            - spin_sym (str): Spin-state symmetry label.
+            - *rovib_qua[J][rov_sym] (tuple): Rovibrational quantum numbers.
+
+        quanta_block (dict): Quantum numbers in the hyperfine basis for each symmetry of hyperfine state
+            with resolution corresponding to rovibrational-state J and symmetry. Each element
+            is a tuple: (J, rov_sym, I, spin_sym, no_rov_states), where:
+            - no_rov_states (int): Number of rotational-vibrational states.
     """
     omega = np.array([0, 1, 2])
     two_omega = omega * 2
