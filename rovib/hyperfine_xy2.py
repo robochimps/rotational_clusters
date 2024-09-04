@@ -19,10 +19,10 @@ KHZ_TO_INVCM = 1.0 / constants.value("speed of light in vacuum") * 10
 def dipole_xy2(
     qua: Dict[float, Dict[str, np.ndarray]],
     vec: Dict[float, Dict[str, np.ndarray]],
-    rovib_qua: Dict[int, Dict[str, np.ndarray]],
     rovib_dipole_me: Dict[Tuple[int, int], Dict[Tuple[str, str], np.ndarray]],
     m_val: float = None,
-) -> Tuple[np.ndarray, np.ndarray, np.ndarray]:
+    thresh: float = 1e-12,
+) -> Tuple[np.ndarray, np.ndarray]:
     """
     Computes the matrix elements of the laboratory-frame dipole moment operator
     between hyperfine states.
@@ -42,15 +42,6 @@ def dipole_xy2(
         vec (dict): Dictionary containing the hyperfine eigenvectors for different values of
             F and C2v symmetry. The structure is `vec[F][sym][:, :].
 
-        rovib_qua (dict): Dictionary containing rovibrational state assignments for different
-            values of the rotational quantum number J and C2v symmetry. The structure is:
-            `rovib_qua[J][sym][istate]`, where
-            - J (int): Rotational angular momentum  quantum number.
-            - sym (str): Rovibrational-state symmetry label.
-            - istate (int): Rovibrational-state index.
-            Each element is a tuple of rovibrational quantum numbers (str)
-            that describe the rovibrational state.
-
         rovib_dipole_me (dict): Dictionary containing the rovibrational matrix elements of the
             dipole moment operator. The structure is:
             `rovib_dipole_me[(J1, J2)][(sym1, sym2)][istate1, istate2, omega]`, where:
@@ -63,6 +54,8 @@ def dipole_xy2(
         m_f (float): Specific value of the magnetic quantum number for compuing dipole matrix elements.
             If not specified, calculations will be done for m_f = -F .. F.
 
+        thresh (float): Threshold for neglecting matrix elements.
+
     Returns:
         hmat (numpy.ndarray): 3D array containing the matrix elements of the dipole moment operator.
             The first dimension (0, 1, 2) corresponds to the Cartesian components (X, Y, Z) of the
@@ -70,21 +63,12 @@ def dipole_xy2(
             and ket hyperfine states.
 
         coupl_qua (numpy.ndarray): Array containing quantum numbers in the dipole-coupled basis
-            with resolution down to the rovibrational state level. Each element is a tuple
-            (F, m_F, sym, J, rov_sym, I, spin_sym, *rovib_qua), where:
+            with resolution corresponding to hyperfine states. Each element is a tuple
+            (F, m_F, sym, hyper_state_ind), where:
             - F (str): Total spin-rotational angular momentum quantum number.
             - m_F (str): Magnetic quantum number.
             - sym (str): Hyperfine-state symmetry label.
-            - J (str): Rotational angular momentum quantum number.
-            - rov_sym (str): Rovibrational-state symmetry.
-            - I (str): Nuclear spin quantum number.
-            - spin_sym (str): Spin-state symmetry label.
-            - *rovib_qua[J][rov_sym] (tuple): Rovibrational quantum numbers.
-
-        coupl_qua_block (numpy.ndarray): Array containing quantum numbers in the dipole-coupled basis
-            with resolution corresponding to hyperfine states. Each element is a tuple
-            (F, m_F, sym, J, rov_sym, I, spin_sym, no_rov_states), where:
-            - no_rov_states (int): Number of rovibrational states.
+            - hyper_state_ind (str): Hyperfine-state index.
     """
 
     # compute M-matrix
@@ -153,7 +137,9 @@ def dipole_xy2(
                         optimize="optimal",
                     )
                 )
-            mmat[(f1, f2)] = np.moveaxis(np.array(mmat_), 0, 1)
+            mmat_ = np.array(mmat_)
+            if np.any(np.abs(mmat_) > thresh):
+                mmat[(f1, f2)] = np.moveaxis(mmat_, 0, 1)
     # shape of mmat = (cart, omega, m1, m2), omega = [1], cart = [0, 1, 2]
 
     # compute K-matrix
@@ -231,13 +217,14 @@ def dipole_xy2(
                         )
                     )
 
-            hmat.append(hrow)
+            if len(hrow) > 0:
+                hmat.append(hrow)
 
     hmat = np.block(hmat)
 
     # assing quantum numbers at hyperfine-state resolution
 
-    coupl_qua_block = []
+    coupl_qua = []
     for f in qua.keys():
         for sym in qua[f].keys():
             if m_val is None:
@@ -247,41 +234,20 @@ def dipole_xy2(
                     continue
                 m_list = np.array([m_val])
             for m in m_list:
+                nstates = sum([nst for (j, rov_sym, i, spin_sym, nst) in qua[f][sym]])
                 q = np.concatenate(
                     (
-                        np.repeat(f, len(qua[f][sym]))[:, None],
-                        np.repeat(m, len(qua[f][sym]))[:, None],
-                        np.repeat(sym, len(qua[f][sym]))[:, None],
-                        qua[f][sym],
+                        np.repeat(f, nstates)[:, None],
+                        np.repeat(m, nstates)[:, None],
+                        np.repeat(sym, nstates)[:, None],
+                        np.arange(nstates)[:, None],
                     ),
                     axis=-1,
                 )
-                coupl_qua_block.append(q)
-    coupl_qua_block = np.concatenate(coupl_qua_block, axis=0)
+                coupl_qua.append(q)
+    coupl_qua = np.concatenate(coupl_qua, axis=0)
 
-    # assing quantum numbers at rovibrational-state resolution
-
-    coupl_qua = np.concatenate(
-        [
-            np.concatenate(
-                (
-                    np.repeat(f, len(rovib_qua[int(j)][rov_sym]))[:, None],
-                    np.repeat(m, len(rovib_qua[int(j)][rov_sym]))[:, None],
-                    np.repeat(sym, len(rovib_qua[int(j)][rov_sym]))[:, None],
-                    np.repeat(j, len(rovib_qua[int(j)][rov_sym]))[:, None],
-                    np.repeat(rov_sym, len(rovib_qua[int(j)][rov_sym]))[:, None],
-                    np.repeat(i, len(rovib_qua[int(j)][rov_sym]))[:, None],
-                    np.repeat(spin_sym, len(rovib_qua[int(j)][rov_sym]))[:, None],
-                    rovib_qua[int(j)][rov_sym],
-                ),
-                axis=-1,
-            )
-            for (f, m, sym, j, rov_sym, i, spin_sym, nstates) in coupl_qua_block
-        ],
-        axis=0,
-    )
-
-    return hmat, coupl_qua, coupl_qua_block
+    return hmat, coupl_qua
 
 
 def spinrot_xy2(
