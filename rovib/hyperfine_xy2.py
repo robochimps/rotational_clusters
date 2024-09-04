@@ -60,6 +60,9 @@ def dipole_xy2(
             - omega (int or list[int]): Spherical tensor irreducible representation index.
                 For rank-1 operators, omega = [1]; for rank-2 operators, omega = [0, 1, 2].
 
+        m_f (float): Specific value of the magnetic quantum number for compuing dipole matrix elements.
+            If not specified, calculations will be done for m_f = -F .. F.
+
     Returns:
         hmat (numpy.ndarray): 3D array containing the matrix elements of the dipole moment operator.
             The first dimension (0, 1, 2) corresponds to the Cartesian components (X, Y, Z) of the
@@ -104,8 +107,10 @@ def dipole_xy2(
                 m1 = np.linspace(-f1, -f1, int(2 * f1) + 1)
                 m2 = np.linspace(-f2, -f2, int(2 * f2) + 1)
             else:
-                assert abs(m_val) <= f1, f"|m_val| = {abs(m_val)} > f1"
-                assert abs(m_val) <= f2, f"|m_val| = {abs(m_val)} > f2"
+                if abs(m_val) > f1:
+                    continue
+                if abs(m_val) > f2:
+                    continue
                 m1 = np.array([m_val])
                 m2 = np.array([m_val])
 
@@ -162,6 +167,9 @@ def dipole_xy2(
             for f2 in qua.keys():
                 for sym2 in qua[f2].keys():
                     vec2 = vec[f2][sym2]
+
+                    if (f1, f2) not in mmat:
+                        continue
 
                     kmat = []
                     for j1, rov_sym1, i1, spin_sym1, nstates1 in qua[f1][sym1]:
@@ -235,6 +243,8 @@ def dipole_xy2(
             if m_val is None:
                 m_list = np.linspace(-f, -f, int(2 * f) + 1)
             else:
+                if abs(m_val) > f:
+                    continue
                 m_list = np.array([m_val])
             for m in m_list:
                 q = np.concatenate(
