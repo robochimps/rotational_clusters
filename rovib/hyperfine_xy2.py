@@ -8,10 +8,9 @@ import numpy as np
 from numpy.typing import NDArray
 from py3nj import wigner3j, wigner6j
 from scipy import constants
-import sys
 
 from .c2v import C2V_PRODUCT_TABLE
-from .cartens import SPHER_IND, UMAT_SPHER_TO_CART, UMAT_CART_TO_SPHER
+from .cartens import SPHER_IND, UMAT_CART_TO_SPHER, UMAT_SPHER_TO_CART
 
 KHZ_TO_INVCM = 1.0 / constants.value("speed of light in vacuum") * 10
 
@@ -83,20 +82,22 @@ def dipole_xy2(
         for omega in omega_list
     }
 
+    m_list = {}
+    for f in qua.keys():
+        if m_val is None:
+            m_list[f] = np.linspace(-f, -f, int(2 * f) + 1)
+        else:
+            if abs(m_val) <= f:
+                m_list[f] = np.array([m_val])
+
     mmat = {}
     for f1 in qua.keys():
         for f2 in qua.keys():
-
-            if m_val is None:
-                m1 = np.linspace(-f1, -f1, int(2 * f1) + 1)
-                m2 = np.linspace(-f2, -f2, int(2 * f2) + 1)
-            else:
-                if abs(m_val) > f1:
-                    continue
-                if abs(m_val) > f2:
-                    continue
-                m1 = np.array([m_val])
-                m2 = np.array([m_val])
+            try:
+                m1 = m_list[f1]
+                m2 = m_list[f2]
+            except KeyError:
+                continue
 
             m12 = np.concatenate(
                 (
@@ -142,19 +143,31 @@ def dipole_xy2(
                 mmat[(f1, f2)] = np.moveaxis(mmat_, 0, 1)
     # shape of mmat = (cart, omega, m1, m2), omega = [1], cart = [0, 1, 2]
 
+    # number of tensor Cartesian componets
+    ncart = UMAT_SPHER_TO_CART[rank].shape[0]
+
     # compute K-matrix
 
     hmat = []
     for f1 in qua.keys():
         for sym1 in qua[f1].keys():
+            try:
+                dim1 = sum(elem[4] for elem in qua[f1][sym1]) * len(m_list[f1])
+            except KeyError:
+                continue
             vec1 = vec[f1][sym1]
 
             hrow = []
             for f2 in qua.keys():
                 for sym2 in qua[f2].keys():
+                    try:
+                        dim2 = sum(elem[4] for elem in qua[f2][sym2]) * len(m_list[f2])
+                    except KeyError:
+                        continue
                     vec2 = vec[f2][sym2]
 
                     if (f1, f2) not in mmat:
+                        hrow.append(np.zeros((ncart, dim1, dim2), dtype=np.complex128))
                         continue
 
                     kmat = []
@@ -193,7 +206,10 @@ def dipole_xy2(
                                 krow.append(me)
                             else:
                                 krow.append(
-                                    np.zeros((nstates1, nstates2, len(omega_list)))
+                                    np.zeros(
+                                        (nstates1, nstates2, len(omega_list)),
+                                        dtype=np.complex128,
+                                    )
                                 )
 
                         kmat.append(np.concatenate(krow, axis=1))
@@ -217,34 +233,31 @@ def dipole_xy2(
                         )
                     )
 
-            if len(hrow) > 0:
-                hmat.append(hrow)
+            hmat.append(np.concatenate(hrow, axis=-1))
 
-    hmat = np.block(hmat)
+    hmat = np.concatenate(hmat, axis=1)
 
-    # assing quantum numbers at hyperfine-state resolution
+    # assing quantum numbers
 
     coupl_qua = []
     for f in qua.keys():
         for sym in qua[f].keys():
-            if m_val is None:
-                m_list = np.linspace(-f, -f, int(2 * f) + 1)
+            nstates = sum(elem[4] for elem in qua[f][sym])
+            if f in m_list:
+                coupl_qua += [
+                    np.concatenate(
+                        (
+                            np.repeat(f, nstates)[:, None],
+                            np.repeat(m, nstates)[:, None],
+                            np.repeat(sym, nstates)[:, None],
+                            np.arange(nstates)[:, None],
+                        ),
+                        axis=-1,
+                    )
+                    for m in m_list[f]
+                ]
             else:
-                if abs(m_val) > f:
-                    continue
-                m_list = np.array([m_val])
-            for m in m_list:
-                nstates = sum([nst for (j, rov_sym, i, spin_sym, nst) in qua[f][sym]])
-                q = np.concatenate(
-                    (
-                        np.repeat(f, nstates)[:, None],
-                        np.repeat(m, nstates)[:, None],
-                        np.repeat(sym, nstates)[:, None],
-                        np.arange(nstates)[:, None],
-                    ),
-                    axis=-1,
-                )
-                coupl_qua.append(q)
+                continue
     coupl_qua = np.concatenate(coupl_qua, axis=0)
 
     return hmat, coupl_qua
