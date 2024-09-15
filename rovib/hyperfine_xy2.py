@@ -126,6 +126,7 @@ def dipole_xy2(
                         -m12_1.astype(int),
                         [sigma * 2] * n,
                         m12_2.astype(int),
+                        ignore_invalid=True,
                     ).reshape(len(m1), len(m2))
                     for sigma in sigma_list[omega]
                 ]
@@ -138,10 +139,10 @@ def dipole_xy2(
                         optimize="optimal",
                     )
                 )
-            mmat_ = np.array(mmat_)
+            mmat_ = np.array(mmat_)  # shape = (omega, cart, m1, m2)
             if np.any(np.abs(mmat_) > thresh):
                 mmat[(f1, f2)] = np.moveaxis(mmat_, 0, 1)
-    # shape of mmat = (cart, omega, m1, m2), omega = [1], cart = [0, 1, 2]
+                # shape = (cart, omega, m1, m2), omega = [1], cart = [0, 1, 2]
 
     # number of tensor Cartesian componets
     ncart = UMAT_SPHER_TO_CART[rank].shape[0]
@@ -149,20 +150,22 @@ def dipole_xy2(
     # compute K-matrix
 
     hmat = []
+
     for f1 in qua.keys():
         for sym1 in qua[f1].keys():
-            try:
+            if f1 in m_list:
                 dim1 = sum(elem[4] for elem in qua[f1][sym1]) * len(m_list[f1])
-            except KeyError:
+            else:
                 continue
             vec1 = vec[f1][sym1]
 
             hrow = []
+
             for f2 in qua.keys():
                 for sym2 in qua[f2].keys():
-                    try:
+                    if f2 in m_list:
                         dim2 = sum(elem[4] for elem in qua[f2][sym2]) * len(m_list[f2])
-                    except KeyError:
+                    else:
                         continue
                     vec2 = vec[f2][sym2]
 
@@ -192,11 +195,15 @@ def dipole_xy2(
                                         int(f2 * 2),
                                         int(j2 * 2),
                                         2,
+                                        ignore_invalid=True,
                                     )
                                 )
-                                # shape of dipole = (nstates1, nstates2, omega), omega=[1]
                                 try:
-                                    me = rovib_dipole_me[(j1, j2)][(rov_sym1, rov_sym2)]
+                                    me = (
+                                        rovib_dipole_me[(j1, j2)][(rov_sym1, rov_sym2)]
+                                        * prefac
+                                    )
+                                    # shape = (nstates1, nstates2, omega), omega=[1]
                                 except KeyError:
                                     me = 0
                             else:
@@ -427,6 +434,7 @@ def spinrot_xy2(
     enr = {}
     vec = {}
     qua = {}
+    hout = {}
 
     for sym in allowed_sym:
         hmat = []
@@ -474,8 +482,9 @@ def spinrot_xy2(
                     me2 = 0
 
                 me = prefac * (me1 + me2) * KHZ_TO_INVCM
-                if i1 == i2:
-                    me += np.diag(rov_enr1)
+
+                # if i1 == i2:
+                #     me += np.diag(rov_enr1)
 
                 if isinstance(me, np.ndarray):
                     hrow.append(me)
@@ -487,6 +496,7 @@ def spinrot_xy2(
         hmat = np.block(hmat)
 
         enr[sym], vec[sym] = np.linalg.eigh(hmat)
+        hout[sym] = hmat
 
         qua[sym] = np.concatenate(
             [
@@ -505,7 +515,8 @@ def spinrot_xy2(
             axis=0,
         )
 
-    return enr, vec, qua, quanta_block
+    # return enr, vec, qua, quanta_block
+    return hout, qua, quanta_block
 
 
 def spin_reduced_me_xy2(
