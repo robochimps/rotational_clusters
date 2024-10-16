@@ -458,11 +458,11 @@ def spinrot_xy2(
                     0.5
                     * (-1) ** ip
                     * wigner6j(
-                        spin1 * 2,
+                        int(spin1 * 2),
                         j1 * 2,
-                        f_angmom * 2,
+                        int(f_angmom * 2),
                         j2 * 2,
-                        spin2 * 2,
+                        int(spin2 * 2),
                         2,
                         ignore_invalid=True,
                     )
