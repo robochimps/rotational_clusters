@@ -5,7 +5,7 @@ import numpy as np
 from jax import config
 from jax import numpy as jnp
 from rovib.cartens import CART_IND
-from rovib.symtop import threej_wang
+from rovib.symtop import threej_wang, rotme_ovlp
 
 config.update("jax_enable_x64", True)
 
@@ -108,8 +108,19 @@ def run_rovib_me(
         sr_h1_vib = h5["spin-rotation"]["h1"][:]
         sr_h2_vib = h5["spin-rotation"]["h2"][:]
         dipole_vib = h5["dipole-moment"][:]
+        coords_vib = h5["coordinate"][:]
 
     dj = abs(j1 - j2)
+
+    if dj == 0:
+        coords_me = _rovib_me(
+            j1,
+            coords_vib,
+            state_ind_list=state_ind_list[j1],
+            pmax=pmax,
+        )
+    else:
+        coords_me = {}
 
     if dj <= 1:
         dipole_me = _tensor_rovib_me(
@@ -147,12 +158,12 @@ def run_rovib_me(
         sr1_me = {}
         sr2_me = {}
 
-    if dipole_me or sr1_me or sr2_me:
+    if coords_me or dipole_me or sr1_me or sr2_me:
         print(f"store matrix elements for J1 = {j1} J2 = {j2} in file {out_filename}")
         with h5py.File(out_filename, "w") as h5:
             for label, oper in zip(
-                ("dipole", "spin-rotation-H1", "spin-rotation-H2"),
-                (dipole_me, sr1_me, sr2_me),
+                ("coordinate", "dipole", "spin-rotation-H1", "spin-rotation-H2"),
+                (coords_me, dipole_me, sr1_me, sr2_me),
             ):
                 for (sym1, sym2), me in oper.items():
                     if verbose:
@@ -188,6 +199,7 @@ def _rovib_states(j: int, state_ind_list: Dict[str, List[int]] = None, pmax: int
             coefficients[sym] = coefs
         vib_indices[sym] = vind
         rot_indices[sym] = rind
+    h5.close()
     return energies, quanta, vib_indices, rot_indices, coefficients
 
 
@@ -270,8 +282,70 @@ def _tensor_rovib_me(
                     "ijc,ijc->ij", vib_me_, rot_me[omega][jnp.ix_(rind1, rind2)]
                 )
                 me.append(jnp.einsum("ik,ij,jl->kl", jnp.conj(coefs1), me_, coefs2))
-            res[((sym1, sym2))] = jnp.moveaxis(jnp.array(me), 0, -1)
+            res[(sym1, sym2)] = jnp.moveaxis(jnp.array(me), 0, -1)
+    h5_1.close()
+    h5_2.close()
+    return res
 
+
+def _rovib_me(
+    j: int,
+    vib_me: np.ndarray,
+    state_ind_list: Dict[str, List[int]] = None,
+    pmax: int = 20,
+    linear: bool = False,
+):
+    """Computes rovibrational matrix elements of a molecular-frame operator"""
+
+    rot_me, *_ = rotme_ovlp(j, linear=linear)
+
+    h5 = h5py.File(f"h2s_coefficients_pmax{pmax}_j{j}.h5", "r")
+
+    res = {}
+
+    for sym1 in h5["energies"].keys():
+        enr1 = h5["energies"][sym1][:]
+        coefs1 = h5["coefficients"][sym1][:]
+        vind1 = h5["vib-indices"][sym1][:]
+        rind1 = h5["rot-indices"][sym1][:]
+        qua1 = np.array(
+            [elem[0].decode("utf-8").split(",") for elem in h5["quanta"][sym1][:]]
+        )
+
+        if state_ind_list is not None:
+            if sym1 in state_ind_list:
+                ind = state_ind_list[sym1]
+                enr1 = enr1[ind]
+                coefs1 = coefs1[:, ind]
+            else:
+                continue
+
+        for sym2 in h5["energies"].keys():
+            enr2 = h5["energies"][sym2][:]
+            coefs2 = h5["coefficients"][sym2][:]
+            vind2 = h5["vib-indices"][sym2][:]
+            rind2 = h5["rot-indices"][sym2][:]
+            qua2 = np.array(
+                [elem[0].decode("utf-8").split(",") for elem in h5["quanta"][sym2][:]]
+            )
+
+            if state_ind_list is not None:
+                if sym2 in state_ind_list:
+                    ind = state_ind_list[sym2]
+                    enr2 = enr2[ind]
+                    coefs2 = coefs2[:, ind]
+                else:
+                    continue
+
+            res[(sym1, sym2)] = jnp.einsum(
+                "ik,ij...,ij,jl->kl...",
+                jnp.conj(coefs1),
+                vib_me[jnp.ix_(vind1, vind2)],
+                rot_me[jnp.ix_(rind1, rind2)],
+                coefs2,
+            )
+
+    h5.close()
     return res
 
 
@@ -279,21 +353,21 @@ if __name__ == "__main__":
     import sys
 
     # indices of cluster states
-    # state_ind = read_cluster_state_ind()
-    # out_filename = "cluster"
+    state_ind = read_cluster_state_ind()
+    out_filename = "cluster"
 
     # ... alternatively indices of the lowest 10 states
-    nstates = 10
-    out_filename = f"lowest{nstates}"
-    state_ind = {
-        j: {
-            "A1": list(range(nstates)),
-            "A2": list(range(nstates)),
-            "B1": list(range(nstates)),
-            "B2": list(range(nstates)),
-        }
-        for j in range(50, 61)
-    }
+    # nstates = 10
+    # out_filename = f"lowest{nstates}"
+    # state_ind = {
+    #     j: {
+    #         "A1": list(range(nstates)),
+    #         "A2": list(range(nstates)),
+    #         "B1": list(range(nstates)),
+    #         "B2": list(range(nstates)),
+    #     }
+    #     for j in range(50, 61)
+    # }
 
     try:
         # compute and store matrix elements
