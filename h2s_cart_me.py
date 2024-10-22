@@ -48,7 +48,7 @@ def read_cluster_state_ind(
 
 
 def run_rovib_enr(
-    out_filename: str, state_ind_list: Dict[int, Dict[str, List[int]]], pmax: int = 20
+    out_filename: str, state_ind_list: Dict[int, Dict[str, List[int]]], pmax: int = 24
 ):
     with h5py.File(out_filename, "w") as h5:
         for j in state_ind_list.keys():
@@ -79,7 +79,7 @@ def run_rovib_me(
     j2: int,
     out_filename: str,
     state_ind_list: Dict[int, Dict[str, List[int]]] = None,
-    pmax: int = 20,
+    pmax: int = 24,
     verbose: bool = True,
 ):
     """
@@ -98,7 +98,7 @@ def run_rovib_me(
             (int) is the rotational quantum number and `sym` (str) is a symmetry label
             in the C2v group. If `None` (default), matrix elements are calculated for all states.
         pmax (int): Vibrational polyad number. Used for defining file names containing precomputed
-            rovibrational wavefunctions and vibrational matrix elements. Default is 20.
+            rovibrational wavefunctions and vibrational matrix elements. Default is 24.
         verbose (bool): If `True`, matrix elements will be printed into output. Default is `True`.
 
     Returns:
@@ -210,10 +210,22 @@ def _tensor_rovib_me(
     vib_me: np.ndarray,
     state_ind_list1: Dict[str, List[int]] = None,
     state_ind_list2: Dict[str, List[int]] = None,
-    pmax: int = 20,
+    pmax: int = 24,
     linear: bool = False,
 ):
-    """Computes rovibrational matrix elements of a Cartesian tensor operator"""
+    """Computes rovibrational matrix elements of a laboratory-frame Cartesian tensor operator
+
+    The first two dimensions of `vib_me` array correspond to the indices of bra and ket vibrational states,
+    `vib_me[:, :, i]` with i = 0..2 for x, y, z components of rank-1 tensor,
+    `vib_me[:, :, i, j]` with i, j = 0..2 for xx, xy, xz, yz, ..., zz components of rank-2 tensor.
+
+    `state_ind_list1` and `state_ind_list2` are dictionaries containing lists of rovibrational state
+    indices for the target bra and ket states, as dictionary values, for different state symmetries,
+    as dictionary keys.
+    If `state_ind_list1` or `state_ind_list2` is None, the matrix elements for all bra or ket
+    rovibrational states for given bra J=`j1` and ket J=`j2` will be computed.
+    """
+
     # determine the order of Cartesian indices in the Cartesian-to-spherical tensor
     #   transformation matrix (in cartens.CART_IND and symtop.threej_wang)
     cart_ind = [["xyz".index(x) for x in elem] for elem in CART_IND[rank]]
@@ -295,7 +307,14 @@ def _rovib_me(
     pmax: int = 20,
     linear: bool = False,
 ):
-    """Computes rovibrational matrix elements of a molecular-frame operator"""
+    """Computes rovibrational matrix elements of a molecular-frame operator
+
+    The first two dimensions of vib_me array correspond to indices of bra and ket vibrational states.
+
+    `state_ind_list` is a dictionary containing lists of rovibrational state indices for target states,
+    as dictionary values, for different state symmetries as dictionary keys.
+    If `state_ind_list` is None, matrix elements for all states for given J=`j` will be computed.
+    """
 
     rot_me, *_ = rotme_ovlp(j, linear=linear)
 
@@ -353,28 +372,28 @@ if __name__ == "__main__":
     import sys
 
     # indices of cluster states
-    state_ind = read_cluster_state_ind()
-    out_filename = "cluster"
+    # state_ind = read_cluster_state_ind()
+    # out_filename = "cluster"
 
     # ... alternatively indices of the lowest 10 states
-    # nstates = 10
-    # out_filename = f"lowest{nstates}"
-    # state_ind = {
-    #     j: {
-    #         "A1": list(range(nstates)),
-    #         "A2": list(range(nstates)),
-    #         "B1": list(range(nstates)),
-    #         "B2": list(range(nstates)),
-    #     }
-    #     for j in range(50, 61)
-    # }
+    nstates = 1000
+    out_filename = f"{nstates}"
+    state_ind = {
+        j: {
+            "A1": list(range(nstates)),
+            "A2": list(range(nstates)),
+            "B1": list(range(nstates)),
+            "B2": list(range(nstates)),
+        }
+        for j in range(40, 61)
+    }
 
     try:
         # compute and store matrix elements
         j1 = int(sys.argv[1])
         j2 = int(sys.argv[2])
         out_filename = f"h2s_me_{out_filename}_j{j1}_j{j2}.h5"
-        run_rovib_me(j1, j2, out_filename, state_ind_list=state_ind, verbose=True)
+        run_rovib_me(j1, j2, out_filename, state_ind_list=state_ind, verbose=True, pmax=24)
 
     except IndexError:
         # store energies
