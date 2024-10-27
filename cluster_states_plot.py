@@ -9,7 +9,7 @@ if __name__ == "__main__":
 
     fig, ax = plt.subplots()
 
-    with open("cluster_states_plot.txt", "r") as fl:
+    with open("cluster_states_plot_pmax24.txt", "r") as fl:
         for line in fl:
             w = line.split()
             j = int(w[0])
