@@ -1,3 +1,7 @@
+import jax
+
+jax.config.update("jax_platform_name", "cpu")
+
 from typing import Dict, List
 
 import h5py
@@ -11,7 +15,7 @@ config.update("jax_enable_x64", True)
 
 
 def read_cluster_state_ind(
-    min_j: int = 50, max_j: int = 60
+    min_j: int = 40, max_j: int = 60, pmax: int = 24
 ) -> Dict[int, Dict[str, List[int]]]:
     """Reads indices of rotational cluster states from `h2s_cluster_states_id.txt` file.
 
@@ -26,7 +30,7 @@ def read_cluster_state_ind(
             in the C2v group.
     """
     state_ind = {}
-    with open("h2s_cluster_states_id.txt", "r") as fl:
+    with open(f"h2s_cluster_states_id_pmax{pmax}.txt", "r", encoding="utf-8") as fl:
         for line in fl:
             w = line.split()
             j = [int(w[0 + i * 12]) for i in range(4)]
@@ -53,7 +57,7 @@ def run_rovib_enr(
     with h5py.File(out_filename, "w") as h5:
         for j in state_ind_list.keys():
             enr, qua, vind, rind, coefs = _rovib_states(
-                j, state_ind_list=state_ind_list[j]
+                j, state_ind_list=state_ind_list[j], pmax=pmax
             )
             print(
                 f"store energies for J = {j}, states = {[(sym, np.round(val, 6)) for sym, val in enr.items()]}"
@@ -131,7 +135,7 @@ def run_rovib_me(
             state_ind_list1=state_ind_list[j1],
             state_ind_list2=state_ind_list[j2],
             pmax=pmax,
-        )  # Debye units
+        )
     else:
         dipole_me = {}
 
@@ -173,9 +177,9 @@ def run_rovib_me(
                     h5.create_dataset(f"{label}/{sym1}/{sym2}", data=me)
 
 
-def _rovib_states(j: int, state_ind_list: Dict[str, List[int]] = None, pmax: int = 20):
+def _rovib_states(j: int, state_ind_list: Dict[str, List[int]] = None, pmax: int = 24):
     """Reads rovibrational energies and quanta"""
-    h5 = h5py.File(f"h2s_coefficients_pmax{pmax}_j{j}.h5", "r")
+    h5 = h5py.File(f"pmax{pmax}/h2s_coefficients_pmax{pmax}_j{j}.h5", "r")
     energies = {}
     quanta = {}
     vib_indices = {}
@@ -248,8 +252,8 @@ def _tensor_rovib_me(
     jktau_list1, jktau_list2, rot_me = threej_wang(rank, j1, j2, linear=linear)
     # rot_me[omega].shape = (2*j1+1, 2*j2+1, ncart)
 
-    h5_1 = h5py.File(f"h2s_coefficients_pmax{pmax}_j{j1}.h5", "r")
-    h5_2 = h5py.File(f"h2s_coefficients_pmax{pmax}_j{j2}.h5", "r")
+    h5_1 = h5py.File(f"pmax{pmax}/h2s_coefficients_pmax{pmax}_j{j1}.h5", "r")
+    h5_2 = h5py.File(f"pmax{pmax}/h2s_coefficients_pmax{pmax}_j{j2}.h5", "r")
 
     res = {}
 
@@ -318,7 +322,7 @@ def _rovib_me(
 
     rot_me, *_ = rotme_ovlp(j, linear=linear)
 
-    h5 = h5py.File(f"h2s_coefficients_pmax{pmax}_j{j}.h5", "r")
+    h5 = h5py.File(f"pmax{pmax}/h2s_coefficients_pmax{pmax}_j{j}.h5", "r")
 
     res = {}
 
@@ -371,33 +375,37 @@ def _rovib_me(
 if __name__ == "__main__":
     import sys
 
+    PMAX = 24
+
     # indices of cluster states
-    # state_ind = read_cluster_state_ind()
-    # out_filename = "cluster"
+    state_ind = read_cluster_state_ind(pmax=PMAX)
+    out_filename = "cluster"
 
     # ... alternatively indices of the lowest 10 states
-    nstates = 1000
-    out_filename = f"{nstates}"
-    state_ind = {
-        j: {
-            "A1": list(range(nstates)),
-            "A2": list(range(nstates)),
-            "B1": list(range(nstates)),
-            "B2": list(range(nstates)),
-        }
-        for j in range(40, 61)
-    }
+    # NO_STATES = 1000
+    # out_filename = f"{NO_STATES}"
+    # state_ind = {
+    #     j: {
+    #         "A1": list(range(NO_STATES)),
+    #         "A2": list(range(NO_STATES)),
+    #         "B1": list(range(NO_STATES)),
+    #         "B2": list(range(NO_STATES)),
+    #     }
+    #     for j in range(40, 61)
+    # }
 
     try:
         # compute and store matrix elements
         j1 = int(sys.argv[1])
         j2 = int(sys.argv[2])
-        out_filename = f"h2s_me_{out_filename}_j{j1}_j{j2}.h5"
-        run_rovib_me(j1, j2, out_filename, state_ind_list=state_ind, verbose=True, pmax=24)
+        out_filename = f"h2s_me_{out_filename}_j{j1}_j{j2}_pmax{PMAX}.h5"
+        run_rovib_me(
+            j1, j2, out_filename, state_ind_list=state_ind, verbose=True, pmax=PMAX
+        )
 
     except IndexError:
         # store energies
         min_j = min(list(state_ind.keys()))
         max_j = max(list(state_ind.keys()))
-        out_filename = f"h2s_enr_{out_filename}_j{min_j}_j{max_j}.h5"
-        run_rovib_enr(out_filename, state_ind)
+        out_filename = f"h2s_enr_{out_filename}_j{min_j}_j{max_j}_pmax{PMAX}.h5"
+        run_rovib_enr(out_filename, state_ind, pmax=PMAX)
