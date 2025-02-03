@@ -38,7 +38,7 @@ def _legendre_deriv(x, n):
 
 
 @jax.custom_jvp
-def hermite(x: NDArray[np.float_], n: NDArray[np.int_]) -> Array:
+def hermite(x: NDArray[np.float64], n: NDArray[np.int_]) -> Array:
     shape_dtype = jax.ShapeDtypeStruct(x.shape + n.shape, x.dtype)
     return jax.pure_callback(_hermite, shape_dtype, x, n, vectorized=True)
 
@@ -58,7 +58,7 @@ def _hermite_jvp(prim, tang):
 
 
 @jax.custom_jvp
-def legendre(x: NDArray[np.float_], n: NDArray[np.int_]) -> Array:
+def legendre(x: NDArray[np.float64], n: NDArray[np.int_]) -> Array:
     shape_dtype = jax.ShapeDtypeStruct(x.shape + n.shape, x.dtype)
     return jax.pure_callback(_legendre, shape_dtype, x, n, vectorized=True)
 

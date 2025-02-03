@@ -8,8 +8,8 @@ from jax import numpy as jnp
 from py3nj import wigner3j
 
 from .c2v import C2V_KTAU_IRREPS
-from .wigner import wigner_D, _jy_eig
 from .cartens import SPHER_IND, UMAT_CART_TO_SPHER
+from .wigner import _jy_eig, wigner_D
 
 config.update("jax_enable_x64", True)
 
@@ -369,10 +369,10 @@ def threej_wang(rank: int, j1: int, j2: int, linear: bool):
     """Computes three-j symbol contracted with the Cartesian-to-spherical
     transformation for tensor of specified rank, i.e.,
 
-    \sum_\sigma=-\omega^\omega (-1)**k' threej(J, \omega, J', k, \sigma, -k') U_{\omega,\sigma,\\alpha}^{(\omega)}
+    \\sum_\\sigma=-\\omega^\\omega (-1)**k' threej(J, \\omega, J', k, \\sigma, -k') U_{\\omega,\\sigma,\\alpha}^{(\\omega)}
 
     and transformes the result into the Wang's basis.
-    Here, \omega = 0.. `rank` and \\alpha denotes Cartesian components of tensor,
+    Here, \\omega = 0.. `rank` and \\alpha denotes Cartesian components of tensor,
     e.g., 'x', 'y', 'z' for rank-1 tensor, 'xx', 'xy', 'xz', 'yz', ..., 'zz' for rank-2 tensor.
     """
     k_list1, jktau_list1, wang_coefs1 = WANG_COEFS[(j1, linear)]

@@ -1,4 +1,5 @@
 """Vibrational solutions for an XY2-type triatomic molecule"""
+
 import itertools
 from typing import Callable, List, Optional
 
@@ -7,11 +8,13 @@ import numpy as np
 from jax import numpy as jnp
 from numpy.typing import NDArray
 
+jax.config.update("jax_enable_x64", True)
+
 
 def vibrations_xy2(
     list_psi: List[Callable],
-    list_x: List[NDArray[np.float_]],
-    list_w: List[NDArray[np.float_]],
+    list_x: List[NDArray[np.float64]],
+    list_w: List[NDArray[np.float64]],
     list_q: List[NDArray[np.int_]],
     select_points: Callable,
     select_quanta: Callable,
@@ -24,12 +27,12 @@ def vibrations_xy2(
 ):
     """Solves the eigenvalue problem for vibrational Hamiltonian of an XY2-type triatomic molecule
 
-    See `h2s.ipynb` for the use example.
+    See `h2s_rovib.ipynb` for the use example.
     """
     list_psi_vmap = [jax.jit(jax.vmap(psi, in_axes=(0, None))) for psi in list_psi]
     list_dpsi_vmap = [
-        jax.jit(jax.vmap(jax.jacrev(bas, argnums=0), in_axes=(0, None)))
-        for bas in list_psi
+        jax.jit(jax.vmap(jax.jacfwd(psi, argnums=0), in_axes=(0, None)))
+        for psi in list_psi
     ]
     x_to_r_vmap = jax.jit(jax.vmap(x_to_r_map, in_axes=(0,)))
     jac_x_to_r_vmap = jax.jit(jax.vmap(jax.jacrev(x_to_r_map, argnums=0), in_axes=(0,)))
@@ -62,6 +65,7 @@ def vibrations_xy2(
         f(x_, np.arange(0, np.max(n) + 1))[:, n]
         for f, x_, n in zip(list_dpsi_vmap, (x1, x2, x3), list_q)
     ]
+
     dpsi = jnp.array(
         [
             dpsi1[:, q1] * psi2[:, q2] * psi3[:, q3],

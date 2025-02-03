@@ -1,7 +1,9 @@
 """Python implementation of the electric dipole moment surface of H2S molecule
 from A. A. A. Azzam, L. Lodi, S. N. Yurchenko, J. Tennyson, JQSRT 161, 41-49, 2015
+(https://doi.org/10.1016/j.jqsrt.2015.03.029)
 
-This is Python adaptation of the TROVE function pot_xy2.f90/MLdms2pqr_xy2_coeff
+This is a Python adaptation of the TROVE function implemented in pot_xy2.f90/MLdms2pqr_xy2_coeff
+(https://github.com/Trovemaster/TROVE/blob/master/pot_xy2.f90)
 """
 
 from typing import Callable
