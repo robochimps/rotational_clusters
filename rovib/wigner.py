@@ -16,7 +16,7 @@ def _jy_eig(j: float):
     return v
 
 
-def wigner_d(j: float, beta: NDArray[np.float_]) -> NDArray[np.float_]:
+def wigner_d(j: float, beta: NDArray[np.float64]) -> NDArray[np.float64]:
     """Computes the Wigner d-function, d_{m,k}^{j}(β).
 
     Args:
@@ -39,8 +39,8 @@ def wigner_d(j: float, beta: NDArray[np.float_]) -> NDArray[np.float_]:
 
 def wigner_D(
     j: float,
-    grid: NDArray[np.float_],
-) -> NDArray[np.complex_]:
+    grid: NDArray[np.float64],
+) -> NDArray[np.complex128]:
     """Computes the Wigner D-function, D_{m,k}^{j}(α, β, γ).
 
     Args:

@@ -1,32 +1,38 @@
-# Work log
+# Rotational_clusters
+### Nuclear spin-symmetry breaking in rotational cluster states
 
-[x] Implement rovibrations for H2S
+This repository contains supplementary code for the manuscript:
+> Andrey Yachmenev and Guang Yang, *Nuclear spin symmetry-breaking and spin polarization in rotational energy level clusters*, (2025) submitted.
 
-[x] Compute all states up to $J=60$, test against TROVE/DVR3D, plot energy level diagram for cluster states
+The package performs variational calculations of the rovibrational energies of the triatomic molecule H$_2$S up to high rotational excitations ($J \leq 60$).
+At high $J$-values, some rotational states of H$_2$S cluster into groups of four, an effect associated with spontaneous symmetry breaking caused by centrifugal and Coriolis couplings.
+Additionally, the package performs computations of nuclear hyperfine effects (e.g., spin-rotation interaction) and the Stark effect.
 
-[x] Implement rotational density, 2D in $(\theta,\phi)$, plot densities for cluster states.
+Repository structure
+---
+- **[h2s_rovib.ipynb](h2s_rovib.ipynb)**: Computes the rovibrational energies and wavefunctions of H$_2$S, storing the results in files within the `rovib_wf_pmax24` folder.
 
-[x] Add vibrational matrix elements of spin-rotation
+- **[h2s_clusters.ipynb](h2s_clusters.ipynb)**: Identifies cluster states in both the ground and excited vibrational states by analyzing rotational density distributions. The resulting cluster state indices for different $J$ values and symmetries are stored in files, such as [h2s_cluster_states_id_pmax24.txt](h2s_cluster_states_id_pmax24.txt).
 
-[x] Add vibrational matrix elements of dipole moment
+- **[h2s_cart_me.py](h2s_cart_me.py)**: Computes rovibrational matrix elements for various operators, including dipole moment and spin-rotation coupling tensors, for selected rovibrational states. The results are stored in files within the `rovib_me_pmax24` folder.
 
-[x] Implement spin-rotation interaction.
+- **[h2s_hyperfine.ipynb](h2s_hyperfine.ipynb)**: Computes hyperfine spin-rotation interactions, plots rotational and spin-density distributions, and evaluates the Stark effect for rotational cluster states.
 
-[x] Compute hyperfine components of cluster states.
+Citation
+---
+If you use this code in your research, please cite:
 
-[x] Implement spin-density, complute with and without Stark effect
+> A. Yachmenev and G. Yang, "Nuclear spin symmetry-breaking and spin polarization in rotational energy level clusters," (2025) submitted.
 
-[ ] Implement dipole interaction
+```bibtex
+@article{Yachmenev2025,
+  author  = {A. Yachmenev and G. Yang},
+  title   = {Nuclear spin symmetry-breaking and spin polarization in rotational energy level clusters},
+  year    = {2025},
+  journal = {Submitted}
+}
+```
 
-[ ] Compute Stark effect for rovibrational and hypefine cluster states
-
-[ ] Implement quadrupole interaction.
-
-[ ] Add vibrational matrix elements of electric field gradient (for $\text{D}_2\text{S}$ molecule)
-
-[ ] Implement nuclear quadrupole interaction (for $\text{D}_2\text{S}$ molecule)
-
-
-[ ] Improve performance of J=0 basis using GPU implementation ideas from `flows`
-
-[ ] Integrate with `pyhami` when it's ready
+Contact
+---
+For questions or feedback, feel free to open an issue or reach out to the authors directly via andrey.yachmenev@robochimps.com
