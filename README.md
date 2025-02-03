@@ -4,13 +4,13 @@
 This repository contains supplementary code for the manuscript:
 > Andrey Yachmenev and Guang Yang, *Nuclear spin symmetry-breaking and spin polarization in rotational energy level clusters*, (2025) submitted.
 
-The package performs variational calculations of the rovibrational energies of the triatomic molecule H$_2$S up to high rotational excitations ($J \leq 60$).
-At high $J$-values, some rotational states of H$_2$S cluster into groups of four, an effect associated with spontaneous symmetry breaking caused by centrifugal and Coriolis couplings.
+The package performs variational calculations of the rovibrational energies of the triatomic molecule $\text{H}_2\text{S}$ up to high rotational excitations ($J \leq 60$).
+At high $J$-values, some rotational states of $\text{H}_2\text{S}$ cluster into groups of four, an effect associated with spontaneous symmetry breaking caused by centrifugal and Coriolis couplings.
 Additionally, the package performs computations of nuclear hyperfine effects (e.g., spin-rotation interaction) and the Stark effect.
 
 Repository structure
 ---
-- **[h2s_rovib.ipynb](h2s_rovib.ipynb)**: Computes the rovibrational energies and wavefunctions of H$_2$S, storing the results in files within the `rovib_wf_pmax24` folder.
+- **[h2s_rovib.ipynb](h2s_rovib.ipynb)**: Computes the rovibrational energies and wavefunctions of $\text{H}_2\text{S}$, storing the results in files within the `rovib_wf_pmax24` folder.
 
 - **[h2s_clusters.ipynb](h2s_clusters.ipynb)**: Identifies cluster states in both the ground and excited vibrational states by analyzing rotational density distributions. The resulting cluster state indices for different $J$ values and symmetries are stored in files, such as [h2s_cluster_states_id_pmax24.txt](h2s_cluster_states_id_pmax24.txt).
 
