@@ -22,14 +22,19 @@ Citation
 ---
 If you use this code in your research, please cite:
 
-> A. Yachmenev and G. Yang, "Nuclear spin symmetry-breaking and spin polarization in rotational energy level clusters," (2025) submitted.
+> A. Yachmenev and G. Yang, "Nuclear spin symmetry-breaking and spin polarization in rotational energy level clusters," (2025) submitted, arXiv [2503.20695](https://arxiv.org/abs/2503.20695).
 
 ```bibtex
 @article{Yachmenev2025,
   author  = {A. Yachmenev and G. Yang},
   title   = {Nuclear spin symmetry-breaking and spin polarization in rotational energy level clusters},
   year    = {2025},
-  journal = {Submitted}
+  journal = {Submitted},
+  archiveprefix = {arXiv},
+  arxivid = {2503.20695},
+  eprint = {2503.20695},
+  primaryclass = {physics},
+  arxiv = {https://arxiv.org/abs/2503.20695},
 }
 ```
 
