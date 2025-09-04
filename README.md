@@ -2,7 +2,7 @@
 ### Nuclear spin-symmetry breaking in rotational cluster states
 
 This repository contains supplementary code for the manuscript:
-> Andrey Yachmenev and Guang Yang, *Nuclear spin symmetry-breaking and spin polarization in rotational energy level clusters*, (2025) submitted.
+> Andrey Yachmenev and Guang Yang, "Nuclear spin symmetry breaking and spin polarization in rotational energy level clusters", *Phys. Rev. Research* **7** (2025) L032047, [DOI:10.1103/k7nd-nnxg](https://doi.org/10.1103/k7nd-nnxg), [arXiv:2503.20695 [physics]](https://doi.org/10.48550/arXiv.2503.20695)
 
 The package performs variational calculations of the rovibrational energies of the triatomic molecule $\text{H}_2\text{S}$ up to high rotational excitations ($J \leq 60$).
 At high $J$-values, some rotational states of $\text{H}_2\text{S}$ cluster into groups of four, an effect associated with spontaneous symmetry breaking caused by centrifugal and Coriolis couplings.
@@ -22,14 +22,16 @@ Citation
 ---
 If you use this code in your research, please cite:
 
-> A. Yachmenev and G. Yang, "Nuclear spin symmetry-breaking and spin polarization in rotational energy level clusters," (2025) submitted, arXiv [2503.20695](https://arxiv.org/abs/2503.20695).
-
 ```bibtex
-@article{Yachmenev2025,
+@article{Yachmenev_PRR7_2025,
   author  = {A. Yachmenev and G. Yang},
-  title   = {Nuclear spin symmetry-breaking and spin polarization in rotational energy level clusters},
+  title   = {Nuclear spin symmetry breaking and spin polarization in rotational energy level clusters},
   year    = {2025},
-  journal = {Submitted},
+  journal = {Phys. Rev. Research},
+  volume = {7},
+  pages = {L032047},
+  url = {https://doi.org/10.1103/k7nd-nnxg},
+  DOI = {10.1103/k7nd-nnxg},
   archiveprefix = {arXiv},
   arxivid = {2503.20695},
   eprint = {2503.20695},
